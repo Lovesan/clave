@@ -25,7 +25,8 @@
 (in-package :cl-user)
 
 (uiop:define-package #:clave
-  (:use #:cl #:cffi #:trivial-garbage)
+  (:nicknames #:ffmpeg)
+  (:use #:cl #:cffi #:trivial-garbage)  
   (:export
 
    ;; errors
