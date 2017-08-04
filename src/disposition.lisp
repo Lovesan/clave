@@ -24,8 +24,21 @@
 
 (in-package #:clave)
 
-(defbitfield frame-flags
-  (:corrupt #x1)
-  (:discard #x4))
+(defbitfield disposition
+  (:default #x0001)
+  (:dub #x0002)
+  (:original #x0004)
+  (:comment #x0008)
+  (:lyrics #x0010)
+  (:karaoke #x0020)
+  (:forced #x0040)
+  (:hearing-impaired #x0080)
+  (:visual-impaired #x0100)
+  (:clean-effects #x0200)
+  (:attached-pic #x0400)
+  (:timed-thumbnails #x0800)
+  (:captions #x010000)
+  (:descriptions #x020000)
+  (:metadata #x040000))
 
 ;; vim: ft=lisp et

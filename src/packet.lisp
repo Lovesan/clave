@@ -245,7 +245,7 @@
 
 (defmethod print-object ((packet packet) stream)
   (if *print-pretty*
-    (print-unreadable-object (packet stream :type t)
+    (print-unreadable-object (packet stream :type t :identity t)
       (if (packet-alive-p packet)
         (pprint-logical-block (stream nil)
           (format stream "Data: #x~8,'0X; " (pointer-address (packet-data packet)))

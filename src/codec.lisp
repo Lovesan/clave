@@ -301,7 +301,8 @@
                                 (codec-profile-id p)
                                 (codec-profile-name p))
                         (when next
-                          (pprint-newline :linear stream))))))))
+                          (pprint-newline :linear stream)))))))
+      (format stream "{#x~8,'0X}" (pointer-address (%codec-ptr codec))))
     (call-next-method)))
 
 ;; vim: ft=lisp et

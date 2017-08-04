@@ -28,7 +28,7 @@
   :author "Dmitry Ignatiev <lovesan.ru at gmail.com>"
   :maintainer "Dmitry Ignatiev <lovesan.ru at gmail.com>"
   :licence "MIT"
-  :depends-on (#:trivial-garbage #:cffi #:uiop)
+  :depends-on (#:trivial-garbage #:bordeaux-threads #:cffi #:uiop)
   :serial t
   :components ((:module "src"
                 :serial t
@@ -59,6 +59,12 @@
                              (:file "color-range")
                              (:file "color-transfer-characteristic")
                              (:file "color-primaries")
+                             (:file "field-order")
+                             (:file "disposition")
+                             (:file "discard")
+                             (:file "stream-parse-type")
+                             (:file "io-flags")
+                             (:file "compliance")
 
                              ;; impl
                              (:file "format")
@@ -66,6 +72,12 @@
                              (:file "buffer")
                              (:file "packet")
                              (:file "frame")
+                             (:file "codec-parameters")
+                             (:file "media-stream")
+                             (:file "dict")
+                             (:file "io-context")
+                             (:file "format-context")
+                             (:file "codec-context")
                              ))))
 
 ;; vim: ft=lisp et

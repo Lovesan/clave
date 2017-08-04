@@ -24,9 +24,21 @@
 
 (in-package #:clave)
 
+(eval-when (:compile-toplevel :load-toplevel :execute)
+  (if (= 8 (foreign-type-size :pointer))
+    (pushnew '64-bit *features*)
+    (pushnew '32-bit *features*)))
+
+#+clave::64-bit
+(defctype size-t :uint64)
+#+clave::64-bit
+(defctype size-t :uint32)
+
 (declaim (inline mklist))
 (defun mklist (x)
   (if (listp x) x (list x)))
+
+(define-modify-macro mklistf () mklist)
 
 (defmacro with-gensyms ((&rest vars) &body body)
   (let ((bindings (mapcar (lambda (x)
@@ -37,10 +49,11 @@
     `(let ,bindings ,@body)))
 
 (defun to-string (x)
-  (etypecase x
+  (typecase x
     (base-string (coerce x '(vector character)))
     ((or (vector character)) x)
-    ((or symbol character base-char) (coerce (string x) '(vector character)))))
+    ((or symbol character base-char) (coerce (string x) '(vector character)))
+    (T (princ-to-string x))))
 
 (declaim (inline ws-char-p))
 (defun ws-char-p (x)
@@ -80,10 +93,32 @@
 
 (defconstant +no-pts+ (- #x8000000000000000))
 
+(deftype uint8 () '(unsigned-byte 8))
+
 (deftype int32 () '(signed-byte 32))
+
+(deftype int () '(signed-byte 32))
 
 (deftype int64 () '(signed-byte 64))
 
 (deftype index () '(integer 0 #.most-positive-fixnum))
+
+(defmacro let-when ((var value &optional (condition var)) &body body)
+  `(let ((,var ,value))
+     (when ,condition (locally ,@body))))
+
+(defcfun (av-mallocz "av_mallocz" :library libavutil)
+    :pointer
+  (size size-t))
+
+(defcfun (av-free "av_free" :library libavutil)
+    :void
+  (p :pointer))
+
+(defcfun (memcpy "memcpy")
+    :void
+  (dest :pointer)
+  (src :pointer)
+  (size size-t))
 
 ;; vim: ft=lisp et

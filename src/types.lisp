@@ -24,16 +24,6 @@
 
 (in-package #:clave)
 
-(eval-when (:compile-toplevel :load-toplevel :execute)
-  (if (= 8 (foreign-type-size :pointer))
-    (pushnew '64-bit *features*)
-    (pushnew '32-bit *features*)))
-
-#+clave::64-bit
-(defctype size-t :uint64)
-#+clave::64-bit
-(defctype size-t :uint32)
-
 (defstruct (packet (:constructor %packet (ptr))
                    (:conc-name %packet-)
                    (:copier nil)
@@ -59,17 +49,27 @@
   (ptr (null-pointer) :type foreign-pointer)
   (input nil :type boolean))
 
-(defstruct (io-context (:constructor %io-context (ptr))
+(defstruct (io-context (:constructor %io-context (ptr token-ptr opened &optional icb buf rcb wcb scb))
                        (:conc-name %io-context-)
                        (:copier nil)
                        (:predicate io-context-p))
-  (ptr (null-pointer) :type foreign-pointer))
+  (ptr (null-pointer) :type foreign-pointer)
+  (token-ptr (null-pointer) :type foreign-pointer)
+  (opened nil :type boolean)
+  (icb nil :type (or null (function () t) symbol))
+  (buf (make-array 1 :element-type 'uint8) :type (simple-array uint8 (*)))
+  (rcb nil :type (or null function symbol))
+  (wcb nil :type (or null function symbol))
+  (scb nil :type (or null function symbol)))
 
-(defstruct (format-context (:constructor %format-context (ptr))
+(defstruct (format-context (:constructor %format-context (ptr input &optional io icb))
                            (:conc-name %format-context-)
                            (:copier nil)
                            (:predicate format-context-p))
-  (ptr (null-pointer) :type foreign-pointer))
+  (ptr (null-pointer) :type foreign-pointer)
+  input
+  (io nil :type (or null io-context))
+  (icb nil :type (or null symbol function)))
 
 (defstruct (media-stream (:constructor %media-stream (ptr source))
                          (:conc-name %media-stream-)
@@ -78,7 +78,7 @@
   source
   (ptr (null-pointer) :type foreign-pointer))
 
-(defstruct (codec-parameters (:constructor %codec-parameters (ptr source))
+(defstruct (codec-parameters (:constructor %codec-parameters (ptr &optional source))
                              (:conc-name %codec-parameters-)
                              (:copier nil)
                              (:predicate codec-parameters-p))

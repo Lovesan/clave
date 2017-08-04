@@ -24,8 +24,12 @@
 
 (in-package #:clave)
 
-(defbitfield frame-flags
-  (:corrupt #x1)
-  (:discard #x4))
+(defcenum stream-parse-type
+  :none
+  :full
+  :headers
+  :timestamps
+  :full-once
+  (:full-raw #.(mktag 0 #\R #\A #\W)))
 
 ;; vim: ft=lisp et

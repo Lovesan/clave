@@ -24,8 +24,11 @@
 
 (in-package #:clave)
 
-(defbitfield frame-flags
-  (:corrupt #x1)
-  (:discard #x4))
+(defcenum compliance
+  (:very-strict 2)
+  (:strict 1)
+  (:normal 0)
+  (:unofficial -1)
+  (:experimental -2))
 
 ;; vim: ft=lisp et

@@ -108,13 +108,13 @@
   (with-io-format-slots (io-format acc)
     (acc long-name)))
 
-(defun io-format-mime-type (io-format)
+(defun io-format-mime-types (io-format)
   (declare (type io-format io-format))
   (let ((ptr (with-io-format-slots (io-format acc)
                (acc mime-type))))
     (if (null-pointer-p ptr)
       nil
-      (foreign-string-to-lisp ptr :encoding :utf-8))))
+      (split-string (foreign-string-to-lisp ptr :encoding :utf-8) #\,))))
 
 (defun io-format-flags (io-format)
   (declare (type io-format io-format))
@@ -163,9 +163,9 @@
         (pprint-newline :mandatory stream)
         (format stream "Long name: ~a" (io-format-long-name fmt))
         (pprint-newline :mandatory stream)
-        (let ((mime (io-format-mime-type fmt)))
+        (let ((mime (io-format-mime-types fmt)))
           (when mime
-            (format stream "MIME type: ~a" mime)
+            (format stream "MIME types: ~{~a~^, ~}" mime)
             (pprint-newline :mandatory stream)))
         (let ((flags (io-format-flags fmt)))
           (when flags
@@ -173,7 +173,13 @@
             (pprint-newline :mandatory stream)))
         (let ((exts (io-format-extensions fmt)))
           (when exts
-            (format stream "Extensions: ~{~a~^, ~}" exts)
+            (write-string "Extensions: " stream)
+            (pprint-logical-block (stream nil)
+              (loop :for (ext . next) :on exts
+                    :do (format stream "~a" ext)
+                        (when next
+                          (write-string ", " stream)
+                          (pprint-newline :fill stream))))
             (pprint-newline :mandatory stream)))
         (let ((codec-id (io-format-audio-codec fmt)))
           (unless (eq codec-id :none)
@@ -186,7 +192,8 @@
         (let ((codec-id (io-format-subtitle-codec fmt)))
           (unless (eq codec-id :none)
             (format stream "Default subtitle codec: ~a" codec-id)
-            (pprint-newline :mandatory stream)))))
+            (pprint-newline :mandatory stream))))
+      (format stream "{#x~8,'0X}" (pointer-address (%io-format-ptr fmt))))
     (call-next-method)))
 
 ;; vim: ft=lisp et

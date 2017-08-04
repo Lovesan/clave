@@ -41,11 +41,46 @@
 
 (defvar *ffmpeg-initialized* nil)
 
+#+sbcl
+(progn
+  (defvar *io-contexts* (make-hash-table :test #'eql :weakness :value
+                                         :synchronized t))
+  (defvar *fmt-contexts* (make-hash-table :test #'eql :weakness :value
+                                          :synchronized t))
+  (defun get-io-ctx (addr)
+    (gethash addr *io-contexts*))
+  (defun set-io-ctx (addr ctx)
+    (setf (gethash addr *io-contexts*) ctx))
+  (defun get-fmt-ctx (addr)
+    (gethash addr *fmt-contexts*))
+  (defun set-fmt-ctx (addr ctx)
+    (setf (gethash addr *fmt-contexts*) ctx)))
+#-sbcl
+(progn
+  (defvar *io-contexts-mutex* (bt:make-lock))
+  (defvar *io-contexts* (tg:make-weak-hash-table :test #'eql :weakness :value))
+  (defvar *fmt-contexts-mutex* (bt:make-lock))
+  (defvar *fmt-contexts* (tg:make-weak-pointer :test #'eql :weakness :value))
+  (defun get-io-ctx (addr)
+    (bt:with-lock-held (*io-contexts-mutex*)
+      (gethash addr *io-contexts*)))
+  (defun set-io-ctx (addr ctx)
+    (bt:with-lock-held (*io-contexts-mutex*)
+      (setf (gethash addr *io-contexts*) ctx)))
+  (defun get-fmt-ctx (addr)
+    (bt:with-lock-held (*fmt-contexts-mutex*)
+      (gethash addr *fmt-contexts*)))
+  (defun set-fmt-ctx (addr ctx)
+    (bt:with-lock-held (*fmt-contexts-mutex*)
+      (setf (gethash addr *fmt-contexts*) ctx))))
+
 (defun mark-ffmpeg-not-initialized ()
   (setf *ffmpeg-initialized* nil))
 
 (defun initialize-ffmpeg ()
   (unless *ffmpeg-initialized*
+    #-sbcl
+    (setf *io-contexts-mutex* (bt:make-lock))
     (av-register-all)
     (avformat-network-init)
     (avcodec-register-all)

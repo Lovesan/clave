@@ -24,7 +24,7 @@
 
 (in-package #:clave)
 
-(defcenum format-context-flags
+(defbitfield format-context-flags
   (:generate-pts #x0001)
   (:ignore-index #x0002)
   (:non-block #x0004)
