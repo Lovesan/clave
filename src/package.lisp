@@ -28,6 +28,32 @@
   (:use #:cl #:cffi #:trivial-garbage)
   (:export
 
+   ;; errors
+
+   #:ffmpeg-error
+   #:ffmpeg-bug
+   #:bsf-not-found
+   #:buffer-too-small
+   #:decoder-not-found
+   #:demuxer-not-found
+   #:encoder-not-found
+   #:ffmpeg-eof
+   #:ffmpeg-exit
+   #:external-error
+   #:filter-not-found
+   #:invalid-data
+   #:muxer-not-found
+   #:option-not-found
+   #:patches-welcome
+   #:protocol-not-found
+   #:stream-not-found
+   #:io-error
+   #:not-available
+   #:out-of-memory
+   #:permission-denied
+   #:invalid-argument
+   #:ffmpeg-error-string
+   
    ;; enums
    
    #:codec-id
