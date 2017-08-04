@@ -88,8 +88,12 @@
 (declaim (inline mkrational))
 (defun mkrational (rational)
   (declare (type rational rational))
+  #+little-endian
   (logior (logand #xFFFFFFFF (numerator rational))
-          (ash (logand #xFFFFFFFF (denominator rational)) 32)))
+          (ash (logand #xFFFFFFFF (denominator rational)) 32))
+  #+big-endian  
+  (logior (logand #xFFFFFFFF (denominator rational))
+          (ash (logand #xFFFFFFFF (numerator rational)) 32)))
 
 (defconstant +no-pts+ (- #x8000000000000000))
 
@@ -106,6 +110,59 @@
 (defmacro let-when ((var value &optional (condition var)) &body body)
   `(let ((,var ,value))
      (when ,condition (locally ,@body))))
+
+(defmacro defaccessors (type-name conc-name foreign-type ptr-accessor &body accessors)
+  `(progn ,@(loop :with val = (gensym (string :value))
+                  :for acc :in accessors
+                  :nconc (destructuring-bind
+                             (name-form type &optional doc writep) acc
+                           (mklistf name-form)
+                           (check-type type (or symbol cons))
+                           (destructuring-bind
+                               (name &optional (foreign-name name) &aux cffi-type (offset 0)) name-form
+                             (setf name (intern (format nil "~a~a" conc-name name) :clave)
+                                   cffi-type (foreign-slot-type foreign-type foreign-name)
+                                   offset (foreign-slot-offset foreign-type foreign-name))
+                             (list* `(declaim (inline ,name))
+                                    `(defun ,name (,type-name)
+                                       ,@(mklist doc)
+                                       (declare (type ,type-name ,type-name))
+                                       (mem-ref (,ptr-accessor ,type-name)
+                                                ',cffi-type
+                                                ,offset))
+                                    (when writep
+                                      `((declaim (inline (setf ,name)))
+                                        (defun (setf ,name) (,val ,type-name)
+                                          ,@(mklist doc)
+                                          (declare (type ,type-name ,type-name)
+                                                   (type ,type ,val))
+                                          (setf (mem-ref (,ptr-accessor ,type-name)
+                                                         ',cffi-type
+                                                         ,offset)
+                                                ,val)
+                                          ,val))))))
+                    :into forms
+                  :finally (return forms))
+          (defmacro ,(intern (format nil "~a~a~a" '#:with- type-name '#:-slots) :clave)
+              ((&rest vars) instance &body body)
+            (let* ((object (gensym (string ',type-name)))
+                   (bindings (mapcar (lambda (x)
+                                       (mklistf x)
+                                       (destructuring-bind
+                                           (var &optional (slot var)) x
+                                         `(,var (,(or (find-symbol (format nil "~a~a" ',conc-name slot) :clave)
+                                                      (error "No slot ~s is present in ~s" slot ',type-name))
+                                                 ,object))))
+                                    vars)))
+              `(let ((,object ,instance))
+                 (symbol-macrolet ,bindings ,@body))))))
+
+(defmacro with-stack-string ((var string size &optional (condition t)) &body body)
+  (declare (type (integer 0 #.most-positive-fixnum) size))
+  `(with-foreign-pointer (,var ,size)
+     (when ,condition
+       (lisp-string-to-foreign ,string ,var ,size :encoding :utf-8))
+     (locally ,@body)))
 
 (defcfun (av-mallocz "av_mallocz" :library libavutil)
     :pointer

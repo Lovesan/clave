@@ -67,6 +67,7 @@
                              (:file "compliance")
 
                              ;; impl
+                             (:file "log")
                              (:file "format")
                              (:file "codec")
                              (:file "buffer")

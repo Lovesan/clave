@@ -136,4 +136,21 @@
   (declare (type (signed-byte 32) channels))
   (to-channel-layout (av-get-default-channel-layout channels)))
 
+(define-foreign-type channels-or-layout ()
+  ()
+  (:actual-type :uint64)
+  (:simple-parser channels-or-layout))
+
+(defmethod translate-to-foreign (val (type channels-or-layout))
+  (from-channel-layout val))
+
+(defmethod translate-from-foreign (val (type channels-or-layout))
+  (to-channel-layout val))
+
+(defmethod expand-to-foreign (val (type channels-or-layout))
+  `(from-channel-layout ,val))
+
+(defmethod expand-from-foreign (val (type channels-or-layout))
+  `(to-channel-layout ,val))
+
 ;; vim: ft=lisp et

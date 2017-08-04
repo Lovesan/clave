@@ -110,4 +110,28 @@
   (id 0 :type (signed-byte 32))
   (name "" :type (vector character)))
 
+(defcstruct (av-rational :class av-rational)
+  (num :int)
+  (denom :int))
+
+(defmethod translate-from-foreign (ptr (type av-rational))
+  (with-foreign-slots ((num denom) ptr (:struct av-rational))
+    (if (zerop denom) 0 (/ num denom))))
+
+(defmethod expand-from-foreign (ptr (type av-rational))
+  `(with-foreign-slots ((num denom) ,ptr (:struct av-rational))
+     (let ((d denom))
+       (if (zerop d) 0 (/ num d)))))
+
+(defmethod translate-into-foreign-memory (value (type av-rational) ptr)
+  (with-foreign-slots ((num denom) ptr (:struct av-rational))
+    (setf num (numerator value)
+          num (denominator value))))
+
+(defmethod expand-into-foreign-memory (value (type av-rational) ptr)
+  (print value)
+  `(with-foreign-slots ((num denom) ,ptr (:struct av-rational))
+     (setf num (numerator ,value)
+           denom (denominator ,value))))
+
 ;; vim: ft=lisp et

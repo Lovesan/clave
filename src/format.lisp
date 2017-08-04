@@ -24,11 +24,7 @@
 
 (in-package #:clave)
 
-(defun io-format-input-p (io-format)
-  (declare (type io-format io-format))
-  (%io-format-input io-format))
-
-(defcstruct av-input-format
+(defcstruct (av-input-format :class av-output-format)
   (name (:string :encoding :utf-8))
   (long-name (:string :encoding :utf-8))
   (flags format-flags)
@@ -37,7 +33,7 @@
   (priv-class :pointer)
   (mime-type :pointer))
 
-(defcstruct av-output-format
+(defcstruct (av-output-format :class av-output-format)
   (name (:string :encoding :utf-8))
   (long-name (:string :encoding :utf-8))
   (mime-type :pointer)
@@ -48,7 +44,17 @@
   (flags format-flags)
   (codec-tag :pointer))
 
-(defmacro with-io-format-slots
+(defcfun (av-find-input-format "av_find_input_format" :library libavformat)
+    :pointer
+  (name :pointer))
+
+(defcfun (av-guess-format "av_guess_format" :library libavformat)
+    :pointer
+  (name :pointer)
+  (filename :pointer)
+  (mime-type :pointer))
+
+(defmacro %with-io-format-slots
     ((format-value accessor-name &optional is-input-var) &body body)
   (with-gensyms (fmt ptr)
     (unless is-input-var (setf is-input-var (gensym)))
@@ -64,33 +70,26 @@
                       `(foreign-slot-value ,',ptr '(:struct av-output-format) ',slot)))
            ,@body)))))
 
-(defcfun (av-find-input-format "av_find_input_format" :library libavformat)
-    :pointer
-  (name :pointer))
+(defun io-format-input-p (io-format)
+  "Returns non-nil value when IO-FORMAT is input format"
+  (declare (type io-format io-format))
+  (%io-format-input io-format))
 
 (defun find-input-format (name)
+  "Finds input format named NAME"
   (declare (type string name))
-  (with-foreign-pointer (buf 128)
-    (lisp-string-to-foreign name buf 128 :encoding :utf-8)
+  (with-stack-string (buf name 128)
     (let ((p (av-find-input-format buf)))
       (when (null-pointer-p p)
         (error 'demuxer-not-found))
       (%io-format p t))))
 
-(defcfun (av-guess-format "av_guess_format" :library libavformat)
-    :pointer
-  (name :pointer)
-  (filename :pointer)
-  (mime-type :pointer))
-
 (defun guess-output-format (name &optional filename mime-type)
+  "Guess output format using name, filename or mime-type"
   (declare (type (or null string) name filename mime-type))
-  (with-foreign-pointer (pname 128)
-    (with-foreign-pointer (pfilename 128)
-      (with-foreign-pointer (pmime 128)
-        (when name (lisp-string-to-foreign name pname 128 :encoding :utf-8))
-        (when filename (lisp-string-to-foreign filename pfilename 128 :encoding :utf-8))
-        (when mime-type (lisp-string-to-foreign mime-type pmime 128 :encoding :utf-8))
+  (with-stack-string (pname name 128 name)
+    (with-stack-string (pfilename name 128 filename)
+      (with-stack-string (pmime name 128 mime-type)
         (let ((p (av-guess-format (if name pname (null-pointer))
                                   (if filename pfilename (null-pointer))
                                   (if mime-type pmime (null-pointer)))))
@@ -99,37 +98,43 @@
           (%io-format p nil))))))
 
 (defun io-format-name (io-format)
-  (declare (type io-format io-format))
-  (with-io-format-slots (io-format acc)
+  "Format name"
+  (declare (type io-format io-format))  
+  (%with-io-format-slots (io-format acc)
     (acc name)))
 
 (defun io-format-long-name (io-format)
+  "Format long name"
   (declare (type io-format io-format))
-  (with-io-format-slots (io-format acc)
+  (%with-io-format-slots (io-format acc)
     (acc long-name)))
 
 (defun io-format-mime-types (io-format)
+  "Format mime type list"
   (declare (type io-format io-format))
-  (let ((ptr (with-io-format-slots (io-format acc)
+  (let ((ptr (%with-io-format-slots (io-format acc)
                (acc mime-type))))
     (if (null-pointer-p ptr)
       nil
       (split-string (foreign-string-to-lisp ptr :encoding :utf-8) #\,))))
 
 (defun io-format-flags (io-format)
+  "Format flags"
   (declare (type io-format io-format))
-  (with-io-format-slots (io-format acc)
+  (%with-io-format-slots (io-format acc)
     (acc flags)))
 
 (defun io-format-extensions (io-format)
+  "Format file extension list"
   (declare (type io-format io-format))
-  (let ((ptr (with-io-format-slots (io-format acc)
+  (let ((ptr (%with-io-format-slots (io-format acc)
                (acc extensions))))
     (if (null-pointer-p ptr)
       '()
       (split-string (foreign-string-to-lisp ptr :encoding :utf-8) #\,))))
 
 (defun io-format-audio-codec (io-format)
+  "Format default audio codec"
   (declare (type io-format io-format))
   (if (%io-format-input io-format)
     :none
@@ -138,6 +143,7 @@
                         'audio-codec)))
 
 (defun io-format-video-codec (io-format)
+  "Format default video codec"
   (declare (type io-format io-format))
   (if (%io-format-input io-format)
     :none
@@ -146,6 +152,7 @@
                         'video-codec)))
 
 (defun io-format-subtitle-codec (io-format)
+  "Format default subtitle codec"
   (declare (type io-format io-format))
   (if (%io-format-input io-format)
     :none

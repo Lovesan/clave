@@ -26,11 +26,11 @@
 
 (defconstant +ff-profile-unknown+ -99)
 
-(defcstruct av-profile
+(defcstruct (av-profile :class av-profile)
   (profile :int)
   (name :pointer))
 
-(defcstruct av-codec
+(defcstruct (av-codec :class av-codec)
   (name (:string :encoding :utf-8))
   (long-name (:string :encoding :utf-8))
   (media-type media-type)
@@ -46,12 +46,9 @@
   (profiles :pointer)
   )
 
-(defmacro with-codec-slots ((codec-value accessor-name) &body body)
-  (with-gensyms (ptr)
-    `(let ((,ptr (%codec-ptr ,codec-value)))
-       (macrolet ((,accessor-name (slot)
-                    `(foreign-slot-value ,',ptr '(:struct av-codec) ',slot)))
-         ,@body))))
+(defmacro %with-codec-slots (((&rest vars) codec) &body body)
+  `(with-foreign-slots ((,@vars) (%codec-ptr ,codec) (:struct av-codec))
+     ,@body))
 
 (defcfun (avcodec-find-decoder "avcodec_find_decoder" :library libavcodec)
     :pointer
@@ -85,8 +82,7 @@
 
 (defun find-decoder-by-name (name)
   (declare (type string name))
-  (with-foreign-pointer (p 128)
-    (lisp-string-to-foreign name p 128 :encoding :utf-8)
+  (with-stack-string (p name 128)
     (let ((ptr (avcodec-find-decoder-by-name p)))
       (when (null-pointer-p ptr)
         (error 'decoder-not-found))
@@ -94,100 +90,84 @@
 
 (defun find-encoder-by-name (name)
   (declare (type string name))
-  (with-foreign-pointer (p 128)
-    (lisp-string-to-foreign name p 128 :encoding :utf-8)
+  (with-stack-string (p name 128)
     (let ((ptr (avcodec-find-encoder-by-name p)))
       (when (null-pointer-p ptr)
         (error 'encoder-not-found))
       (%codec ptr))))
 
-(defun codec-name (codec)
-  (declare (type codec codec))
-  (with-codec-slots (codec acc)
-    (acc name)))
-
-(defun codec-long-name (codec)
-  (declare (type codec codec))
-  (with-codec-slots (codec acc)
-    (acc name)))
-
-(defun codec-type (codec)
-  (declare (type codec codec))
-  (with-codec-slots (codec acc)
-    (acc media-type)))
-
-(defun codec-id (codec)
-  (declare (type codec codec))
-  (with-codec-slots (codec acc)
-    (acc id)))
-
-(defun codec-capabilities (codec)
-  (declare (type codec codec))
-  (with-codec-slots (codec acc)
-    (acc caps)))
+(defaccessors codec codec- (:struct av-codec) %codec-ptr
+  (name string "Codec name")
+  (long-name string "Codec long name")
+  ((type media-type) keyword "Codec type")
+  (id keyword "Codec id")
+  ((capabilities caps) list "Codec capabilities"))
 
 (defun codec-framerates (codec)
   (declare (type codec codec))
-  (with-codec-slots (codec acc)
-    (let ((p (acc framerates)))
-      (if (null-pointer-p p)
-        '()
-        (loop :with list = '()
-              :for n = (mem-aref p :int 0)
-              :for d = (mem-aref p :int 1)
-              :until (zerop d)
-              :do (push (/ n d) list)
-                  (incf-pointer p 8)
-              :finally (return (nreverse list)))))))
+  (%with-codec-slots ((framerates) codec)
+    (if (null-pointer-p framerates)
+      '()
+      (loop :with list = '()
+            :with p = framerates
+            :for rate = (mem-ref p '(:struct av-rational))
+            :until (zerop rate)
+            :do (push rate list)
+                (incf-pointer p (foreign-type-size '(:struct av-rational)))
+            :finally (return (nreverse list))))))
 
 (defun codec-pixel-formats (codec)
+  "Pixel formats supported by codec"
   (declare (type codec codec))
-  (with-codec-slots (codec acc)
-    (let ((p (acc pix-fmts)))
-      (if (null-pointer-p p)
-        '()
-        (loop :with list = '()
-              :until (= -1 (mem-ref p :int))
-              :do (push (mem-ref p 'pixel-format) list)
-                  (incf-pointer p 4)
-              :finally (return (nreverse list)))))))
+  (%with-codec-slots ((pix-fmts) codec)
+    (if (null-pointer-p pix-fmts)
+      '()
+      (loop :with list = '()
+            :with p = pix-fmts
+            :until (= -1 (mem-ref p :int))
+            :do (push (mem-ref p 'pixel-format) list)
+                (incf-pointer p (foreign-type-size 'pixel-format))
+            :finally (return (nreverse list))))))
 
 (defun codec-sample-formats (codec)
+  "Sample formats supported by codec"
   (declare (type codec codec))
-  (with-codec-slots (codec acc)
-    (let ((p (acc sample-fmts)))
+  (%with-codec-slots ((sample-fmts) codec)
+    (let ((p sample-fmts))
       (if (null-pointer-p p)
         '()
         (loop :with list = '()
               :until (= -1 (mem-ref p :int))
               :do (push (mem-ref p 'sample-format) list)
-                  (incf-pointer p 4)
+                  (incf-pointer p (foreign-type-size 'sample-format))
               :finally (return (nreverse list)))))))
 
 (defun codec-samplerates (codec)
+  "Sample rates supported by codec"
   (declare (type codec codec))
-  (with-codec-slots (codec acc)
-    (let ((p (acc samplerates)))
+  (%with-codec-slots ((samplerates) codec)
+    (let ((p samplerates))
       (if (null-pointer-p p)
         '()
         (loop :with list = '()
               :for x = (mem-ref p :int)
               :until (zerop x)
               :do (push x list)
-                  (incf-pointer p 4)
+                  (incf-pointer p (foreign-type-size :int))
               :finally (return (nreverse list)))))))
 
 (defun codec-channel-layouts (codec)
+  "Channel layouts supported by"
   (declare (type codec codec))
-  (with-codec-slots (codec acc)
-    (let ((p (acc layouts)))
+  (%with-codec-slots ((layouts) codec)
+    (let ((p layouts))
       (if (null-pointer-p p)
         '()
         (loop :with list = '()
               :for x = (mem-ref p :uint64)
               :until (zerop x)
               :do (push (to-channel-layout x) list)
-                  (incf-pointer p 8)
+                  (incf-pointer p (foreign-type-size :uint64))
               :finally (return (nreverse list)))))))
 
 (defcfun (av-codec-get-max-lowres "av_codec_get_max_lowres" :library libavcodec)
@@ -195,13 +175,15 @@
   (codec :pointer))
 
 (defun codec-max-lowres (codec)
+  "Codec max lowres"
   (declare (type codec codec))
   (check-rv (av-codec-get-max-lowres (%codec-ptr codec))))
 
 (defun codec-profiles (codec)
+  "Codec profile list"
   (declare (type codec codec))
-  (with-codec-slots (codec acc)
-    (let ((p (acc profiles)))
+  (%with-codec-slots ((profiles) codec)
+    (let ((p profiles))
       (if (null-pointer-p p)
         '()
         (loop :with list = '()
@@ -217,10 +199,12 @@
               :finally (return (nreverse list)))))))
 
 (defun codec-profile-id (profile)
+  "Codec profile identifier"
   (declare (type codec-profile profile))
   (%codec-profile-id profile))
 
 (defun codec-profile-name (profile)
+  "Codec profile name"
   (declare (type codec-profile profile))
   (%codec-profile-name profile))
 

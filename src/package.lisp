@@ -66,6 +66,12 @@
 
    #:+no-pts+
 
+   ;; log
+   #:log-level
+   #:set-log-callback
+   #:set-log-level
+   #:restore-log-callback
+
    ;; format
 
    #:io-format

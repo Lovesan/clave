@@ -6,17 +6,19 @@
 
 ## Simple example - convert media file to .mp3
 
-```lisp
+```common-lisp
 
 (defun convert-audio-file (infile outfile)
-  (declare (type string infile outfile))
+  (declare (type string infile outfile)
+           (optimize (debug 3)))
   (clave:with-input-context (input infile)
     (clave:find-stream-info input)
     (clave:dump-format input :url infile)
-    (let ((codecpar (find-if (lambda (p) (eq :audio (clave:codecpar-codec-type p)))
-                             (mapcar #'clave:media-stream-codecpar
-                                     (clave:format-context-streams input))))
-          (encoder (clave:find-encoder :mp3)))
+    (let* ((stream (find-if (lambda (s) (eq :audio (clave:codecpar-codec-type
+                                                    (clave:media-stream-codecpar s))))
+                            (clave:format-context-streams input)))
+           (codecpar (and stream (clave:media-stream-codecpar stream)))
+           (encoder (clave:find-encoder :mp3)))
       (unless codecpar (error "No audio stream found"))
       (clave:with-codec-context (inctx (clave:find-decoder
                                         (clave:codecpar-codec-id codecpar))
@@ -43,12 +45,14 @@
               (clave:dump-format output :url outfile)
               (clave:with-packet (packet)
                 (clave:with-frame (frame)
-                  (loop :while (clave:read-frame input packet) :do
-                    (clave:send-packet inctx packet)
-                    (loop :while (clave:receive-frame inctx frame) :do
-                      (clave:send-frame outctx frame)
-                      (loop :while (clave:receive-packet outctx packet) :do
-                        (clave:write-frame output packet))))
+                  (loop :while (clave:read-frame input packet)
+                        :when (= (clave:media-stream-index stream)
+                                 (clave:packet-stream-index packet)) :do
+                          (clave:send-packet inctx packet)
+                          (loop :while (clave:receive-frame inctx frame) :do
+                            (clave:send-frame outctx frame)
+                            (loop :while (clave:receive-packet outctx packet) :do
+                              (clave:write-frame output packet))))
                   (clave:send-flush-frame outctx)
                   (loop :while (clave:receive-packet outctx packet) :do
                     (clave:write-frame output packet))
