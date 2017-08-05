@@ -255,4 +255,27 @@
   :MEDIACODEC ;;;< hardware decoding through MediaCodec
   )
 
+(define-foreign-type pixel-format-list ()
+  ()
+  (:actual-type :pointer)
+  (:simple-parser pixel-format-list))
+
+(defmethod translate-from-foreign (ptr (type pixel-format-list))
+  (if (null-pointer-p ptr)
+    '()
+    (loop :with p :of-type foreign-pointer = ptr
+          :for x = (mem-ref p :int)
+          :until (= -1 x)
+          :collect (foreign-enum-keyword 'pixel-format x)
+          :do (incf-pointer p (foreign-type-size 'pixel-format)))))
+  
+(defmethod expand-from-foreign (ptr (type pixel-format-list))
+  `(if (null-pointer-p ,ptr)
+     '()
+     (loop :with p :of-type foreign-pointer = ,ptr
+           :for x = (mem-ref p :int)
+           :until (= -1 x)
+           :collect (foreign-enum-keyword 'pixel-format x)
+           :do (incf-pointer p (foreign-type-size 'pixel-format)))))
+
 ;; vim: ft=lisp et

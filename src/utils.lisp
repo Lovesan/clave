@@ -53,11 +53,30 @@
     (base-string (coerce x '(vector character)))
     ((or (vector character)) x)
     ((or symbol character base-char) (coerce (string x) '(vector character)))
-    (T (princ-to-string x))))
+    (T (coerce (princ-to-string x) '(vector character)))))
 
 (declaim (inline ws-char-p))
 (defun ws-char-p (x)
   (case x ((#\space #\tab #\return #\newline) t)))
+
+(defun strconc (&rest args)
+  (let ((buf (make-array 0 :element-type 'character
+                           :adjustable t
+                           :fill-pointer t)))
+    (dolist (x args buf)
+      (unless (null x)
+        (let* ((string (to-string x))
+               (string-length (length string))
+               (length (fill-pointer buf))
+               (new-length (+ (length string) (fill-pointer buf))))
+          (when (> string-length 0)
+            (when (> new-length (array-total-size buf))
+              (adjust-array buf (1+ (* new-length 2))))
+            (setf (fill-pointer buf) new-length)
+            (replace buf string :start1 length
+                                :end1 new-length
+                                :start2 0
+                                :end2 string-length)))))))
 
 (defun split-string (str char &optional (skip-empty t))
   (declare (type (vector character) str)
@@ -111,46 +130,56 @@
   `(let ((,var ,value))
      (when ,condition (locally ,@body))))
 
+(defun parse-accessor-form (form conc-name foreign-type)
+  (destructuring-bind (name-form &optional (type t) doc writep (inlinep t)) form
+    (destructuring-bind (name &optional (foreign-name name)) (mklist name-form)
+      (assert (symbolp name) () "Accessor name must be a symbol")
+      (assert (symbolp foreign-name) () "Foreign slot name must be a symbol")
+      (values (intern (strconc conc-name name))
+              foreign-name
+              type
+              (foreign-slot-type foreign-type foreign-name)
+              (foreign-slot-offset foreign-type foreign-name)
+              doc
+              writep
+              inlinep))))
+
+(defun parse-accessors (type-name conc-name foreign-type ptr-accessor accessors)
+  (loop :with value = (gensym (string :value))
+        :for form :in accessors :nconc
+        (multiple-value-bind
+              (name foreign-name type foreign-type offset doc writep inlinep)
+            (parse-accessor-form form conc-name foreign-type)
+          (declare (ignore foreign-name))
+          (list* `(declaim (,(if inlinep 'inline 'notinline) ,name))
+                 `(defun ,name (,type-name)
+                    ,@(mklist doc)
+                    (declare (type ,type-name ,type-name))
+                    (mem-ref (,ptr-accessor ,type-name)
+                             ',foreign-type
+                             ,offset))
+                 (when writep
+                   `((declaim (,(if inlinep 'inline 'notinline) (setf ,name)))
+                     (defun (setf ,name) (,value ,type-name)
+                       ,@(mklist doc)
+                       (declare (type ,type-name ,type-name)
+                                (type ,type ,value))
+                       (setf (mem-ref (,ptr-accessor ,type-name)
+                                      ',foreign-type
+                                      ,offset)
+                             ,value)
+                       ,value)))))))
+
 (defmacro defaccessors (type-name conc-name foreign-type ptr-accessor &body accessors)
-  `(progn ,@(loop :with val = (gensym (string :value))
-                  :for acc :in accessors
-                  :nconc (destructuring-bind
-                             (name-form type &optional doc writep) acc
-                           (mklistf name-form)
-                           (check-type type (or symbol cons))
-                           (destructuring-bind
-                               (name &optional (foreign-name name) &aux cffi-type (offset 0)) name-form
-                             (setf name (intern (format nil "~a~a" conc-name name) :clave)
-                                   cffi-type (foreign-slot-type foreign-type foreign-name)
-                                   offset (foreign-slot-offset foreign-type foreign-name))
-                             (list* `(declaim (inline ,name))
-                                    `(defun ,name (,type-name)
-                                       ,@(mklist doc)
-                                       (declare (type ,type-name ,type-name))
-                                       (mem-ref (,ptr-accessor ,type-name)
-                                                ',cffi-type
-                                                ,offset))
-                                    (when writep
-                                      `((declaim (inline (setf ,name)))
-                                        (defun (setf ,name) (,val ,type-name)
-                                          ,@(mklist doc)
-                                          (declare (type ,type-name ,type-name)
-                                                   (type ,type ,val))
-                                          (setf (mem-ref (,ptr-accessor ,type-name)
-                                                         ',cffi-type
-                                                         ,offset)
-                                                ,val)
-                                          ,val))))))
-                    :into forms
-                  :finally (return forms))
-          (defmacro ,(intern (format nil "~a~a~a" '#:with- type-name '#:-slots) :clave)
+  `(progn ,@(parse-accessors type-name conc-name foreign-type ptr-accessor accessors)
+          (defmacro ,(intern (strconc '#:with- type-name '#:-slots))
               ((&rest vars) instance &body body)
             (let* ((object (gensym (string ',type-name)))
                    (bindings (mapcar (lambda (x)
                                        (mklistf x)
                                        (destructuring-bind
                                            (var &optional (slot var)) x
-                                         `(,var (,(or (find-symbol (format nil "~a~a" ',conc-name slot) :clave)
+                                         `(,var (,(or (find-symbol (strconc ',conc-name slot) :clave)
                                                       (error "No slot ~s is present in ~s" slot ',type-name))
                                                  ,object))))
                                     vars)))

@@ -38,4 +38,27 @@
   :signed64
   :signed64-planar)
 
+(define-foreign-type sample-format-list ()
+  ()
+  (:actual-type :pointer)
+  (:simple-parser sample-format-list))
+
+(defmethod translate-from-foreign (ptr (type sample-format-list))
+  (if (null-pointer-p ptr)
+    '()
+    (loop :with p :of-type foreign-pointer = ptr
+          :for x = (mem-ref p :int)
+          :until (= -1 x)
+          :collect (foreign-enum-keyword 'sample-format x)
+          :do (incf-pointer p (foreign-type-size 'sample-format)))))
+
+(defmethod expand-from-foreign (ptr (type sample-format-list))
+  `(if (null-pointer-p ,ptr)
+     '()
+     (loop :with p :of-type foreign-pointer = ,ptr
+           :for x = (mem-ref p :int)
+           :until (= -1 x)
+           :collect (foreign-enum-keyword 'sample-format x)
+           :do (incf-pointer p (foreign-type-size 'sample-format)))))
+
 ;; vim: ft=lisp et

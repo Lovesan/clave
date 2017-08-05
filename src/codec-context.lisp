@@ -24,6 +24,8 @@
 
 (in-package #:clave)
 
+(defconstant +ff-lambda-max+ (1- (* 256 128)))
+
 (defcenum ff-cmp
   :sad
   :sse
@@ -90,11 +92,11 @@
   (:frame 1)
   (:slice 2))
 
-(defcstruct av-codec-context
+(defcstruct (av-codec-context :class av-codec-context)
   (av-class :pointer)
   (log-level-offset :int)
   (codec-type media-type)
-  (codec :pointer)
+  (codec codec-ptr)
   (codec-name :char :count 32) ;; deprecated
   (codec-id codec-id)
   (codec-tag :uint)
@@ -110,8 +112,7 @@
   (flags2 :int)
   (extradata :pointer)
   (extradata-size :int)
-  (tb-num :int)
-  (tb-denom :int)
+  (time-base (:struct av-rational))
   (ticks-per-frame :int)
   (delay :int)
   (width :int)
@@ -140,8 +141,7 @@
   (slice-count :int)
   (prediction-method :int) ;; deprecated
   (slice-offset :pointer)
-  (sar-num :int)
-  (sar-denom :int)
+  (sample-aspect-ratio (:struct av-rational))
   (me-cmp ff-cmp)
   (me-sub-cmp ff-cmp)
   (mb-cmp ff-cmp)
@@ -194,8 +194,8 @@
   (frame-number :int)
   (block-align :int)
   (cutoff :int)
-  (channel-layout :uint64)
-  (request-channel-layout :uint64)
+  (channel-layout channels-or-layout)
+  (request-channel-layout channels-or-layout)
   (audio-service-type :int)
   (request-sample-format sample-format)
   (get-buffer2 :pointer)
@@ -245,7 +245,7 @@
   (stats-out :pointer)
   (stats-in :pointer)
   (workaround-bugs :int)
-  (struct-std-compliance compliance)
+  (strict-std-compliance compliance)
   (error-concealment error-concealment)
   (debug :int) ;; TODO: enum
   (debug-mv :int) ;; TODO: enum
@@ -278,8 +278,7 @@
   (vbv-delay :uint64) ;; deprecated
   (side-data-only-packets :int) ;; deprecated
   (initial-padding :int)
-  (framerate-num :int)
-  (framerate-denom :int)
+  (frame-rate (:struct av-rational))
   (sw-pix-fmt pixel-format)
   (pkt-timebase-num :int)
   (pkt-timebase-denom :int)
@@ -301,13 +300,6 @@
   (hw-frames-ctx :pointer)
   (sub-text-format :int)
   (trailing-padding :int))
-
-(defmacro with-codec-context-slots ((var ctx accessor-name) &body body)
-  `(let ((,var (%codec-context-ptr ,ctx)))
-     (declare (ignorable ,var))
-     (macrolet ((,accessor-name (slot)
-                  `(foreign-slot-value ,',var '(:struct av-codec-context) ',slot)))
-       ,@body)))
 
 (defcfun (avcodec-alloc-context3 "avcodec_alloc_context3" :library libavcodec)
     :pointer
@@ -346,6 +338,60 @@
     :int
   (ctx :pointer)
   (frame :pointer))
+
+(defaccessors codec-context codec-context- (:struct av-codec-context) %codec-context-ptr
+  (codec-id keyword "Codec id" t)
+  (codec-type keyword "Codec media type" t)
+  (codec (or null codec) "Codec" t)
+  (flags (or keyword list) "Codec context flags" t)
+  (bit-rate int64 "Bit rate" t)
+  (bit-rate-tolerance int "Bit rate tolerance" t)
+  (global-quality int "Global quality (1 = MAX)" t)
+  (compression-level int "Compression level" t)
+  (time-base rational "Time base" t)
+  (ticks-per-frame int "Ticks per frame" t)
+  (delay int "Codec delay" t)
+  (width int "Frame width" t)
+  (height int "Frame height" t)
+  (gop-size int "GOP size" t)
+  (pixel-format keyword "Pixel format" t)
+  (max-b-frames int "Max B frames" t)
+  ((has-b-frames-p has-b-frames) boolean "Has B frames?" t)
+  (slice-count int "Slice count" t)
+  (sample-aspect-ratio rational "Sample aspect ratio" t)
+  (slice-flags (or keyword list) "Slice flags" t)
+  (refs int "Reference frame count" t)
+  (color-primaries keyword "Color primaries" t)
+  (color-trc keyword "Color transfer characteristics" t)
+  (color-space keyword "Color space" t)
+  (color-range keyword "Color range" t)
+  (chroma-location keyword "Chroma location" t)
+  (slices int "Slices" t)
+  (field-order keyword "Field order" t)
+  (sample-rate int "Sample rate" t)
+  (channels int "Channel count" t)
+  ((sample-format sample-fmt) keyword "Sample format" t)
+  (frame-size int "Audio frame sample count")
+  (frame-number int "Frame number")
+  (channel-layout (or keyword list) "Channel layout" t)
+  ((req-channel-layout request-channel-layout) (or keyword list) "Requested channel layout" t)
+  (qcompress single-float "Quality: compression" t)
+  (qblur single-float "Quality: blur" t)
+  (qmin int "Quality minimum" t)
+  (qmax int "Quality maximum" t)
+  (max-qdiff int "Quality max diff" t)
+  ((min-rate rc-min-rate) int64 "Min RC rate" t)
+  ((max-rate rc-max-rate) int64 "Max RC rate" t)
+  (bits-per-coded-sample int "Bits per coded sample" t)
+  (bits-per-raw-sample int "Bits per raw sample" t)
+  ((compliance strict-std-compliance) keyword "Codec standard compliance" t)
+  (hwaccel-context foreign-pointer "HWAccel context" t)
+  (thread-count int "Max thread count" t)
+  ((thread-safe-callbacks-p thread-safe-callbacks) t "Are callbacks thread safe" t)
+  ((profile-id profile) int "Codec profile id" t)
+  (level int "Codec level" t)
+  (frame-rate rational "Frame rate" t)
+  )
 
 (declaim (inline %free-codec-ctx))
 (defun %free-codec-ctx (p)
@@ -464,180 +510,45 @@
         (t (check-rv rv) nil))
       t)))
 
-(macrolet ((defaccessor (name accessor-name value-type value-var read-form &optional write-form)
-             `(progn
-                (declaim (inline ,name))
-                (defun ,name (ctx)
-                  (declare (type codec-context ctx))
-                  (with-codec-context-slots (ptr ctx ,accessor-name)
-                    ,read-form))
-                ,@(when write-form
-                    `((declaim (inline (setf ,name)))
-                      (defun (setf ,name) (,value-var ctx)
-                        (declare (type codec-context ctx)
-                                 (type ,value-type ,value-var))
-                        (with-codec-context-slots (ptr ctx ,accessor-name)
-                          ,write-form)
-                        ,value-var))))))
-  (defaccessor codec-context-codec-id acc keyword value
-    (acc codec-id)
-    (setf (acc codec-id) value))
-  (defaccessor codec-context-codec-type acc keyword value
-    (acc codec-type)
-    (setf (acc codec-type) value))
-  (defaccessor codec-context-codec acc (or codec null) value
-    (let ((p (acc codec)))
-      (if (null-pointer-p p) nil (%codec p)))
-    (let ((p (if value (%codec-ptr value) (null-pointer))))
-      (setf (acc codec) p)))
-  (defaccessor codec-context-flags acc (or list keyword) value
-    (acc flags)
-    (setf (acc flags) value))
-  (defaccessor codec-context-bit-rate acc int64 value
-    (acc bit-rate)
-    (setf (acc bit-rate) value))
-  (defaccessor codec-context-bit-rate-tolerance acc int32 value
-    (acc bit-rate-tolerance)
-    (setf (acc bit-rate-tolerance) value))
-  (defaccessor codec-context-global-quality acc int32 value
-    (acc global-quality)
-    (setf (acc global-quality) value))
-  (defaccessor codec-context-compression-level acc int32 value
-    (acc compression-level)
-    (setf (acc compression-level) value))
-  (defaccessor codec-context-time-base acc rational value
-    (let ((n (acc tb-num))
-          (d (acc tb-denom)))
-      (if (zerop d) 0 (/ n d)))
-    (setf (acc tb-num) (numerator value)
-          (acc tb-denom) (denominator value)))
-  (defaccessor codec-context-ticks-per-frame acc int value
-    (acc ticks-per-frame)
-    (setf (acc ticks-per-frame) value))
-  (defaccessor codec-context-delay acc int value
-    (acc delay))
-  (defaccessor codec-context-width acc int value
-    (acc width)
-    (setf (acc width) value))
-  (defaccessor codec-context-height acc int value
-    (acc height)
-    (setf (acc height) value))
-  (defaccessor codec-context-gop-size acc int value
-    (acc gop-size)
-    (setf (acc gop-size) value))
-  (defaccessor codec-context-pixel-format acc keyword value
-    (acc pixel-format)
-    (setf (acc pixel-format) value))
-  (defaccessor codec-context-max-b-frames acc int value
-    (acc max-b-frames)
-    (setf (acc max-b-frames) value))
-  (defaccessor codec-context-has-b-frames-p acc boolean value
-    (acc has-b-frames))
-  (defaccessor codec-context-slice-count acc int value
-    (acc slice-count)
-    (setf (acc slice-count) value))
-  (defaccessor codec-context-sample-aspect-ratio acc rational value
-    (let ((n (acc sar-num))
-          (d (acc sar-denom)))
-      (if (zerop d) 0 (/ n d)))
-    (setf (acc sar-num) (numerator value)
-          (acc sar-denom) (denominator value)))
-  (defaccessor codec-context-slice-flags acc (or keyword list) value
-    (acc slice-flags)
-    (setf (acc slice-flags) value))
-  (defaccessor codec-context-refs acc int value
-    (acc refs)
-    (setf (acc refs) value))
-  (defaccessor codec-context-color-primaries acc keyword value
-    (acc color-primaries)
-    (setf (acc color-primaries) value))
-  (defaccessor codec-context-color-trc acc keyword value
-    (acc color-trc)
-    (setf (acc color-trc) value))
-  (defaccessor codec-context-color-space acc keyword value
-    (acc color-space)
-    (setf (acc color-space) value))
-  (defaccessor codec-context-color-range acc keyword value
-    (acc color-range)
-    (setf (acc color-range) value))
-  (defaccessor codec-context-chroma-location acc keyword value
-    (acc chroma-location)
-    (setf (acc chroma-location) value))
-  (defaccessor codec-context-slices acc int value
-    (acc slices)
-    (setf (acc slices) value))
-  (defaccessor codec-context-field-order acc keyword value
-    (acc field-order)
-    (setf (acc field-order) value))
-  (defaccessor codec-context-sample-rate acc int value
-    (acc sample-rate)
-    (setf (acc sample-rate) value))
-  (defaccessor codec-context-channels acc int value
-    (acc channels)
-    (setf (acc channels) value))
-  (defaccessor codec-context-sample-format acc keyword value
-    (acc sample-fmt)
-    (setf (acc sample-fmt) value))
-  (defaccessor codec-context-frame-size acc int value
-    (acc frame-size))
-  (defaccessor codec-context-frame-number acc int value
-    (acc frame-number))
-  (defaccessor codec-context-channel-layout acc (or list keyword) value
-    (to-channel-layout (acc channel-layout))
-    (setf (acc channel-layout) (from-channel-layout value)))
-  (defaccessor codec-context-req-channel-layout acc (or list keyword) value
-    (to-channel-layout (acc request-channel-layout))
-    (setf (acc request-channel-layout) (from-channel-layout value)))
-  (defaccessor codec-context-qmin acc int value
-    (acc qmin)
-    (setf (acc qmin) value))
-  (defaccessor codec-context-qmax acc int value
-    (acc qmax)
-    (setf (acc qmax) value))
-  (defaccessor codec-context-max-qdiff acc int value
-    (acc max-qdiff)
-    (setf (acc max-qdiff) value))
-  (defaccessor codec-context-min-rate acc int64 value
-    (acc rc-min-rate)
-    (setf (acc rc-min-rate) value))
-  (defaccessor codec-context-max-rate acc int64 value
-    (acc rc-max-rate)
-    (setf (acc rc-max-rate) value))
-  (defaccessor codec-context-bits-per-coded-sample acc int value
-    (acc bits-per-coded-sample)
-    (setf (acc bits-per-coded-sample) value))
-  (defaccessor codec-context-bits-per-raw-sample acc int value
-    (acc bits-per-raw-sample)
-    (setf (acc bits-per-raw-sample) value))
-  (defaccessor codec-context-hwaccel-context acc foreign-pointer value
-    (acc hwaccel-context)
-    (setf (acc hwaccel-context) value))
-  (defaccessor codec-context-thread-count acc int value
-    (acc thread-count)
-    (setf (acc thread-count) value))
-  (defaccessor codec-context-thread-safe-callbacks-p acc boolean value
-    (acc thread-safe-callbacks)
-    (setf (acc thread-safe-callbacks) value))
-  (defaccessor codec-context-profile-id acc int value
-    (acc profile)
-    (setf (acc profile) value))
-  (defaccessor codec-context-level acc int value
-    (acc level)
-    (setf (acc level) value))
-  (defaccessor codec-context-frame-rate acc rational value
-    (let ((n (acc framerate-num))
-          (d (acc framerate-denom)))
-      (if (zerop d) 0 (/ n d)))
-    (setf (acc framerate-num) (numerator value)
-          (acc framerate-denom) (denominator value)))
-  ;; there are many more
-  )
-
 (defmethod print-object ((ctx codec-context) stream)
   (print-unreadable-object (ctx stream :type t :identity t)
     (if (codec-context-alive-p ctx)
       (pprint-logical-block (stream nil)
-        )
+        (with-codec-context-slots
+            (codec flags bit-rate
+             global-quality time-base delay width
+             height pixel-format sample-format
+             sample-rate channels frame-size channel-layout
+             profile-id level frame-rate)
+            ctx
+          (write-string "Codec: " stream)
+          (write codec :stream stream)
+          (pprint-newline :mandatory stream)
+          (when flags
+            (format stream "Flags: ~{~a~^, ~:_~}~:@_" flags))
+          (when (> bit-rate 0)
+            (format stream "Bit rate: ~a~:@_" bit-rate))
+          (when (> global-quality 0)
+            (format stream "Global quality: ~a~:@_" global-quality))
+          (when (/= time-base 0)
+            (format stream "Time base: ~a~:@_" time-base))
+          (when (/= delay 0)
+            (format stream "Delay: ~a~:@_" delay))
+          (when (/= profile-id 0)
+            (format stream "Profile: ~a~:@_" profile-id))
+          (when (/= level 0)
+            (format stream "Level: ~a~:@_" level))
+          (when (> width 0)
+            (format stream "Pixel format: ~a~:@_" pixel-format)
+            (format stream "Frame width: ~a~:@_" width)
+            (format stream "Frame height: ~a~:@_" height)
+            (format stream "Frame rate: ~a~:@_" (float frame-rate)))
+          (when (> sample-rate 0)
+            (format stream "Sample format: ~a~:@_" sample-format)
+            (format stream "Channels: ~a~:@_" channels)
+            (format stream "Channel layout: ~a~:@_" channel-layout)
+            (format stream "Sample rate: ~a~:@_" sample-rate)
+            (format stream "Audio frame size: ~a~:@_" frame-size))))
       (format stream "Closed ")))
   ctx)
 

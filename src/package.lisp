@@ -119,6 +119,7 @@
 
    #:codec
    #:codecp
+   #:with-codec-slots
    #:codec-name
    #:codec-long-name
    #:codec-type
@@ -146,6 +147,7 @@
    #:packetp
    #:make-packet
    #:clone-packet
+   #:with-packet-slots
    #:packet-alive-p
    #:free-packet
    #:with-packet
@@ -168,6 +170,7 @@
    #:make-frame
    #:free-frame
    #:with-frame
+   #:with-frame-slots
    #:clone-frame
    #:frame-alive-p
    #:frame-writable-p
@@ -215,6 +218,7 @@
    #:codec-parameters
    #:codec-parameters-p
    #:make-codec-parameters
+   #:with-codec-parameters-slots
    #:parameters-to-context
    #:parameters-from-context
    #:codecpar-codec-type
@@ -247,6 +251,7 @@
 
    #:media-stream
    #:media-stream-p
+   #:with-media-stream-slots
    #:media-stream-id
    #:media-stream-index
    #:media-stream-codecpar
@@ -269,6 +274,7 @@
    #:format-context
    #:format-context-p
    #:format-context-input-p
+   #:with-format-context-slots
    #:format-context-alive-p
    #:free-format-context
    #:open-input-context
@@ -280,7 +286,10 @@
    #:format-context-format
    #:format-context-filename
    #:format-context-flags
-   #:format-context-format-flags
+   #:format-context-no-header-p
+   #:format-context-duration
+   #:format-context-packet-size
+   #:format-context-bit-rate
    #:add-media-stream
    #:find-stream-info
    #:dump-format
@@ -293,8 +302,10 @@
 
    ;; codec-context
 
+   #:+ff-lambda-max+
    #:codec-context
    #:codec-context-p
+   #:with-codec-context-slots
    #:codec-context-alive-p
    #:codec-context-open-p
    #:make-codec-context
@@ -341,6 +352,8 @@
    #:codec-context-sample-format
    #:codec-context-frame-size
    #:codec-context-frame-number
+   #:codec-context-qcompress
+   #:codec-context-qblur
    #:codec-context-qmin
    #:codec-context-qmax
    #:codec-context-max-qdiff
@@ -348,6 +361,7 @@
    #:codec-context-max-rate
    #:codec-context-bits-per-coded-sample
    #:codec-context-bits-per-raw-sample
+   #:codec-context-compliance
    #:codec-context-hwaccel-context
    #:codec-context-thread-count
    #:codec-context-thread-safe-callbacks-p

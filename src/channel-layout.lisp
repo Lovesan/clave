@@ -153,4 +153,27 @@
 (defmethod expand-from-foreign (val (type channels-or-layout))
   `(to-channel-layout ,val))
 
+(define-foreign-type channel-layout-list ()
+  ()
+  (:actual-type :pointer)
+  (:simple-parser channel-layout-list))
+
+(defmethod translate-from-foreign (ptr (type channel-layout-list))
+  (if (null-pointer-p ptr)
+    '()
+    (loop :with p :of-type foreign-pointer = ptr
+          :for x = (mem-ref p :uint64)
+          :until (zerop x)
+          :collect (to-channel-layout x)
+          :do (incf-pointer p (foreign-type-size :uint64)))))
+
+(defmethod expand-from-foreign (ptr (type channel-layout-list))
+  `(if (null-pointer-p ,ptr)
+     '()
+    (loop :with p :of-type foreign-pointer = ,ptr
+           :for x = (mem-ref p :uint64)
+           :until (zerop x)
+           :collect (to-channel-layout x)
+           :do (incf-pointer p (foreign-type-size :uint64)))))
+
 ;; vim: ft=lisp et

@@ -32,7 +32,7 @@
   (buf-size :int)
   (mime-type :pointer))
 
-(defcstruct av-stream
+(defcstruct (av-stream :class av-stream)
   (index :int)
   (id :int)
   (codec :pointer)
@@ -40,18 +40,15 @@
   (pts-val :int64)
   (pts-num :int64)
   (pts-denom :int64)
-  (tb-num :int)
-  (tb-denom :int)
+  (time-base (:struct av-rational))
   (start-time :int64)
   (duration :int64)
   (nb-frames :int64)
   (disposition disposition)
   (discard discard)
-  (sar-num :int)
-  (sar-denom :int)
+  (sample-aspect-ratio (:struct av-rational))
   (metadata :pointer)
-  (avg-frame-rate-num :int)
-  (avg-frame-rate-denom :int)
+  (avg-frame-rate (:struct av-rational))
   (attached-pic (:struct av-packet))
   (side-data :pointer)
   (nb-side-data :int)
@@ -108,53 +105,22 @@
                   `(foreign-slot-value ,',var '(:struct av-stream) ',slot)))
        ,@body)))
 
-(macrolet ((defaccessor (name accessor-name value-type value-var read-form write-form)
-             `(progn
-                (declaim (inline ,name))
-                (defun ,name (media-stream)
-                  (declare (type media-stream media-stream))
-                  (with-stream-slots (ptr media-stream ,accessor-name)
-                    ,read-form))
-                (declaim (inline (setf ,name)))
-                (defun (setf ,name) (,value-var media-stream)
-                  (declare (type media-stream media-stream)
-                           (type ,value-type ,value-var))
-                  (with-stream-slots (ptr media-stream ,accessor-name)
-                    ,write-form)
-                  ,value-var))))
-  (defaccessor media-stream-id acc int32 value
-    (acc id)
-    (setf (acc id) value))
-  (defaccessor media-stream-index acc int32 value
-    (acc index)
-    (setf (acc index) value))
-  (defaccessor media-stream-sample-aspect-ratio acc rational value
-    (let ((n (acc sar-num))
-          (d (acc sar-denom)))
-      (if (zerop d) 0 (/ n d)))
-    (setf (acc sar-num) (numerator value)
-          (acc sar-denom) (denominator value)))
-  (defaccessor media-stream-disposition acc keyword value
-    (acc disposition)
-    (setf (acc disposition) value))
-  (defaccessor media-stream-codecpar acc codec-parameters value
-    (%codec-parameters (acc codecpar) media-stream)
-    (check-rv (avcodec-parameters-copy
-               (acc codecpar)
-               (%codec-parameters-ptr value))))
-  (defaccessor media-stream-time-base acc rational value
-    (let ((n (acc tb-num))
-          (d (acc tb-denom)))
-      (if (zerop d) 0 (/ n d)))
-    (setf (acc tb-num) (numerator value)
-          (acc tb-denom) (denominator value)))
-  (defaccessor media-stream-avg-frame-rate acc rational value
-    (let ((n (acc avg-frame-rate-num))
-          (d (acc avg-frame-rate-denom)))
-      (if (zerop d) 0 (/ n d)))
-    (setf (acc avg-frame-rate-num) (numerator value)
-          (acc avg-frame-rate-denom) (denominator value)))
-  )
+(defaccessors media-stream media-stream- (:struct av-stream) %media-stream-ptr
+  (id int "Stream ID" t)
+  (index int "Stream index" t)
+  (sample-aspect-ratio rational "Sample aspect ratio" t)
+  (disposition keyword "Stream disposition" t)
+  (time-base rational "Stream time base" t)
+  (avg-frame-rate rational "Stream average frame rate" t))
+
+(defun media-stream-codecpar (media-stream)
+  "Stream codec parameters"
+  (declare (type media-stream media-stream))
+  (%codec-parameters
+   (mem-ref (%media-stream-ptr media-stream)
+            :pointer
+            (foreign-slot-offset '(:struct av-stream) 'codecpar))
+   media-stream))
 
 (defmethod print-object ((media-stream media-stream) stream)
   (if *print-pretty*
@@ -167,7 +133,7 @@
         (let-when (tb (media-stream-time-base media-stream) (/= tb 0))
           (format stream "Time base: ~a~:@_" tb))
         (let-when (fr (media-stream-avg-frame-rate media-stream) (/= fr 0))
-          (format stream "Average frame rate: ~a~:@_" fr))      
+          (format stream "Average frame rate: ~a~:@_" (float fr)))
         (format stream "Disposition: ~a~:@_" (media-stream-disposition media-stream))
         (write-string "Codec params: " stream)
         (write (media-stream-codecpar media-stream) :stream stream)

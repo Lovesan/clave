@@ -85,20 +85,6 @@
     (av-packet-free pp))
   (values))
 
-(defun make-packet (&optional size)
-  (declare (type (or null (signed-byte 32)) size))
-  (let ((p (av-packet-alloc)))
-    (when (null-pointer-p p)
-      (error 'out-of-memory))
-    (when size
-      (let ((rv (av-new-packet p size)))
-        (when (< rv 0)
-          (%free-packet p)
-          (check-rv rv))))
-    (let ((pkt (%packet p)))
-      (finalize pkt (lambda () (%free-packet p)))
-      pkt)))
-
 (declaim (inline packet-alive-p))
 (defun packet-alive-p (packet)
   (declare (type packet packet))
@@ -122,8 +108,8 @@
       (setf (%packet-ptr packet) (null-pointer))))
   (values))
 
-(defmacro with-packet ((var &optional size) &body body)
-  `(let ((,var (make-packet ,size)))
+(defmacro with-packet ((var &rest args) &body body)
+  `(let ((,var (make-packet ,@args)))
      (declare (dynamic-extent ,var))
      (unwind-protect (locally ,@body)
        (free-packet ,var))))
@@ -154,6 +140,36 @@
   (stream-index int "Packet stream index" t)
   (duration int64 "Packet duration" t)
   ((position pos) int64 "Packet position" t))
+
+
+(defun make-packet (&key size
+                         (pts +no-pts+)
+                         (dts +no-pts+)
+                         flags
+                         (stream-index 0)
+                         (duration 0)
+                         (position -1))
+  (declare (type (or null int) size)
+           (type int stream-index)
+           (type (or keyword list) flags)
+           (type int64 pts dts duration position))
+  (let ((p (av-packet-alloc)))
+    (when (null-pointer-p p)
+      (error 'out-of-memory))
+    (when size
+      (let ((rv (av-new-packet p size)))
+        (when (< rv 0)
+          (%free-packet p)
+          (check-rv rv))))
+    (let ((packet (%packet p)))
+      (finalize packet (lambda () (%free-packet p)))
+      (setf (packet-flags packet) flags
+            (packet-pts packet) pts
+            (packet-dts packet) dts
+            (packet-stream-index packet) stream-index
+            (packet-duration packet) duration
+            (packet-position packet) position)
+      packet)))
 
 (defmethod print-object ((packet packet) stream)
   (if *print-pretty*

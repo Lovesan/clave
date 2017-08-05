@@ -109,13 +109,6 @@
   (protocol-blacklist :pointer)
   (max-streams :int))
 
-(defmacro with-format-context-slots ((var ctx accessor-name) &body body)
-  `(let ((,var (%format-context-ptr ,ctx)))
-     (declare (ignorable ,var))
-     (macrolet ((,accessor-name (slot)
-                  `(foreign-slot-value ,',var '(:struct av-format-context) ',slot)))
-       ,@body)))
-
 (defcfun (avformat-alloc-context "avformat_alloc_context" :library libavformat)
     :pointer)
 
@@ -141,11 +134,71 @@
     :void
   (pp :pointer))
 
+(defcfun (av-sdp-create "av_sdp_create" :library libavformat)
+    :int
+  (ps :pointer)
+  (len :int)
+  (buf :pointer)
+  (size :int))
+
+(defcfun (avformat-new-stream "avformat_new_stream" :library libavformat)
+    :pointer
+  (ctx :pointer)
+  (codec :pointer))
+
+(defcfun (av-dump-format "av_dump_format" :library libavformat)
+    :void
+  (ctx :pointer)
+  (index :int)
+  (url :pointer)
+  (is-output :boolean))
+
+(defcfun (avformat-init-output "avformat_init_output" :library libavformat)
+    :int
+  (ctx :pointer)
+  (dict :pointer))
+
+(defcfun (avformat-write-header "avformat_write_header" :library libavformat)
+    :int
+  (ctx :pointer)
+  (dict :pointer))
+
+(defcfun (av-write-trailer "av_write_trailer" :library libavformat)
+    :int
+  (ctx :pointer))
+
+(defcfun (av-read-frame "av_read_frame" :library libavformat)
+    :int
+  (ctx :pointer)
+  (packet :pointer))
+
+(defcfun (av-write-frame "av_write_frame" :library libavformat)
+    :int
+  (ctx :pointer)
+  (packet :pointer))
+
+(defcfun (av-interleaved-write-frame "av_interleaved_write_frame" :library libavformat)
+    :int
+  (ctx :pointer)
+  (packet :pointer))
+
+(defcfun (avformat-find-stream-info "avformat_find_stream_info" :library libavformat)
+    :int
+  (ctx :pointer)
+  (dict :pointer))
+
 (defcallback format-interrupt-callback :boolean ((opaque :pointer))
   (let ((ctx (get-fmt-ctx (pointer-address opaque))))
     (when ctx
       (let ((icb (%format-context-icb ctx)))
         (when icb (funcall icb))))))
+
+(defaccessors format-context format-context- (:struct av-format-context) %format-context-ptr
+  ((no-header-p no-header) t "No header in format")
+  (flags (or keyword list) "Format flags" t)
+  (duration int64 "Format duration")
+  (bit-rate int64 "Format bit rate")
+  (packet-size (unsigned-byte 32) "Format packet size"))
 
 (declaim (inline format-context-input-p))
 (defun format-context-input-p (ctx)
@@ -162,13 +215,6 @@
       (setf (%format-context-ptr ctx) (null-pointer))
       (cancel-finalization ctx)))
   (values))
-
-(defcfun (av-sdp-create "av_sdp_create" :library libavformat)
-    :int
-  (ps :pointer)
-  (len :int)
-  (buf :pointer)
-  (size :int))
 
 (defun create-sdp (&rest format-contexts)
   (let* ((len (length format-contexts))
@@ -288,35 +334,29 @@
 
 (defun format-context-streams (ctx)
   (declare (type format-context ctx))
-  (with-format-context-slots (ptr ctx acc)
-    (let ((n (acc nb-streams))
-          (p (acc streams))
-          (list '()))
-      (dotimes (i n)
-        (push (%media-stream (mem-aref p :pointer i) ctx) list))
-      (nreverse list))))
+  (let* ((pctx (%format-context-ptr ctx))
+         (n (foreign-slot-value pctx '(:struct av-format-context) 'nb-streams))
+         (p (foreign-slot-value pctx '(:struct av-format-context) 'streams))
+         (list '()))
+    (dotimes (i n)
+      (push (%media-stream (mem-aref p :pointer i) ctx) list))
+    (nreverse list)))
 
 (defun format-context-format (ctx)
   (declare (type format-context ctx))
-  (with-format-context-slots (ptr ctx acc)
+  (with-foreign-slots ((iformat oformat)
+                       (%format-context-ptr ctx)
+                       (:struct av-format-context))
     (let* ((input (%format-context-input ctx))
-           (ptr (if input (acc iformat) (acc oformat))))
+           (ptr (if input iformat oformat)))
       (if (null-pointer-p ptr) nil (%io-format ptr input)))))
 
 (defun format-context-filename (ctx)
   (declare (type format-context ctx))
-  (with-format-context-slots (ptr ctx acc)
-    (foreign-string-to-lisp (acc filename) :encoding :utf-8)))
-
-(defun format-context-flags (ctx)
-  (declare (type format-context ctx))  
-  (with-format-context-slots (ptr ctx acc)
-    (acc flags)))
-
-(defcfun (avformat-new-stream "avformat_new_stream" :library libavformat)
-    :pointer
-  (ctx :pointer)
-  (codec :pointer))
+  (with-foreign-slots ((filename)
+                       (%format-context-ptr ctx)
+                       (:struct av-format-context))
+    (foreign-string-to-lisp filename :encoding :utf-8)))
 
 (defun add-media-stream (ctx codec)
   (declare (type format-context ctx)
@@ -329,24 +369,12 @@
       (error 'out-of-memory))
     (%media-stream p ctx)))
 
-(defcfun (avformat-find-stream-info "avformat_find_stream_info" :library libavformat)
-    :int
-  (ctx :pointer)
-  (dict :pointer))
-
 (defun find-stream-info (ctx &optional options)
   (declare (type format-context ctx)
            (type list options))
   (with-dict (dict options)
     (check-rv (avformat-find-stream-info (%format-context-ptr ctx) dict))
     (from-dict dict)))
-
-(defcfun (av-dump-format "av_dump_format" :library libavformat)
-    :void
-  (ctx :pointer)
-  (index :int)
-  (url :pointer)
-  (is-output :boolean))
 
 (defun dump-format (ctx &key (index 0) (url ""))
   (declare (type string url)
@@ -360,11 +388,6 @@
                     (not (%format-context-input ctx)))
     (values)))
 
-(defcfun (avformat-init-output "avformat_init_output" :library libavformat)
-    :int
-  (ctx :pointer)
-  (dict :pointer))
-
 (defun init-output (ctx &optional options)
   (declare (type format-context ctx)
            (type list options))
@@ -372,10 +395,6 @@
     (check-rv (avformat-init-output (%format-context-ptr ctx) dict))
     (from-dict dict)))
 
-(defcfun (avformat-write-header "avformat_write_header" :library libavformat)
-    :int
-  (ctx :pointer)
-  (dict :pointer))
 
 (defun write-header (ctx &optional options)
   (declare (type format-context ctx)
@@ -384,19 +403,10 @@
     (check-rv (avformat-write-header (%format-context-ptr ctx) dict))
     (from-dict dict)))
 
-(defcfun (av-write-trailer "av_write_trailer" :library libavformat)
-    :int
-  (ctx :pointer))
-
 (defun write-trailer (ctx)
   (declare (type format-context ctx))
   (check-rv (av-write-trailer (%format-context-ptr ctx)))
   (values))
-
-(defcfun (av-read-frame "av_read_frame" :library libavformat)
-    :int
-  (ctx :pointer)
-  (packet :pointer))
 
 (defun read-frame (ctx packet)
   (declare (type format-context ctx)
@@ -409,11 +419,6 @@
         (t (check-rv rv)))
       t)))
 
-(defcfun (av-write-frame "av_write_frame" :library libavformat)
-    :int
-  (ctx :pointer)
-  (packet :pointer))
-
 (defun write-frame (ctx packet)
   (declare (type format-context ctx)
            (type packet packet))
@@ -424,11 +429,6 @@
         ((#.+not-available+ #.+ffmpeg-eof+) nil)
         (t (check-rv rv)))
       t)))
-
-(defcfun (av-interleaved-write-frame "av_interleaved_write_frame" :library libavformat)
-    :int
-  (ctx :pointer)
-  (packet :pointer))
 
 (defun interleaved-write-frame (ctx packet)
   (declare (type format-context ctx)

@@ -37,10 +37,10 @@
   (id codec-id)
   (caps codec-capabilities)
   (framerates :pointer)
-  (pix-fmts :pointer)
+  (pix-fmts pixel-format-list)
   (samplerates :pointer)
-  (sample-fmts :pointer)
-  (layouts :pointer)
+  (sample-fmts sample-format-list)
+  (layouts channel-layout-list)
   (max-lowres :uint8)
   (priv-class :pointer)
   (profiles :pointer)
@@ -65,6 +65,20 @@
 (defcfun (avcodec-find-encoder-by-name "avcodec_find_encoder_by_name" :library libavcodec)
     :pointer
   (name :pointer))
+
+(defcfun (av-codec-get-max-lowres "av_codec_get_max_lowres" :library libavcodec)
+    :int
+  (codec :pointer))
+
+(defaccessors codec codec- (:struct av-codec) %codec-ptr
+  (name string "Codec name")
+  (long-name string "Codec long name")
+  ((type media-type) keyword "Codec type")
+  (id keyword "Codec id")
+  ((capabilities caps) list "Codec capabilities" nil nil)
+  ((pixel-formats pix-fmts) list "Pixel formats supported by codec" nil nil)
+  ((sample-formats sample-fmts) list "Sample formats supported by codec" nil nil)
+  ((channel-layouts layouts) list "Channel layouts supported by codec" nil nil))
 
 (defun find-decoder (id)
   (declare (type keyword id))
@@ -96,13 +110,6 @@
         (error 'encoder-not-found))
       (%codec ptr))))
 
-(defaccessors codec codec- (:struct av-codec) %codec-ptr
-  (name string "Codec name")
-  (long-name string "Codec long name")
-  ((type media-type) keyword "Codec type")
-  (id keyword "Codec id")
-  ((capabilities caps) list "Codec capabilities"))
-
 (defun codec-framerates (codec)
   (declare (type codec codec))
   (%with-codec-slots ((framerates) codec)
@@ -115,32 +122,6 @@
             :do (push rate list)
                 (incf-pointer p (foreign-type-size '(:struct av-rational)))
             :finally (return (nreverse list))))))
-
-(defun codec-pixel-formats (codec)
-  "Pixel formats supported by codec"
-  (declare (type codec codec))
-  (%with-codec-slots ((pix-fmts) codec)
-    (if (null-pointer-p pix-fmts)
-      '()
-      (loop :with list = '()
-            :with p = pix-fmts
-            :until (= -1 (mem-ref p :int))
-            :do (push (mem-ref p 'pixel-format) list)
-                (incf-pointer p (foreign-type-size 'pixel-format))
-            :finally (return (nreverse list))))))
-
-(defun codec-sample-formats (codec)
-  "Sample formats supported by codec"
-  (declare (type codec codec))
-  (%with-codec-slots ((sample-fmts) codec)
-    (let ((p sample-fmts))
-      (if (null-pointer-p p)
-        '()
-        (loop :with list = '()
-              :until (= -1 (mem-ref p :int))
-              :do (push (mem-ref p 'sample-format) list)
-                  (incf-pointer p (foreign-type-size 'sample-format))
-              :finally (return (nreverse list)))))))
 
 (defun codec-samplerates (codec)
   "Sample rates supported by codec"
@@ -155,24 +136,6 @@
               :do (push x list)
                   (incf-pointer p (foreign-type-size :int))
               :finally (return (nreverse list)))))))
-
-(defun codec-channel-layouts (codec)
-  "Channel layouts supported by"
-  (declare (type codec codec))
-  (%with-codec-slots ((layouts) codec)
-    (let ((p layouts))
-      (if (null-pointer-p p)
-        '()
-        (loop :with list = '()
-              :for x = (mem-ref p :uint64)
-              :until (zerop x)
-              :do (push (to-channel-layout x) list)
-                  (incf-pointer p (foreign-type-size :uint64))
-              :finally (return (nreverse list)))))))
-
-(defcfun (av-codec-get-max-lowres "av_codec_get_max_lowres" :library libavcodec)
-    :int
-  (codec :pointer))
 
 (defun codec-max-lowres (codec)
   "Codec max lowres"
@@ -207,6 +170,23 @@
   "Codec profile name"
   (declare (type codec-profile profile))
   (%codec-profile-name profile))
+
+(define-foreign-type codec-ptr ()
+  ()
+  (:actual-type :pointer)
+  (:simple-parser codec-ptr))
+
+(defmethod translate-to-foreign (codec (type codec-ptr))
+  (if codec (%codec-ptr codec) (null-pointer)))
+
+(defmethod translate-from-foreign (ptr (type codec-ptr))
+  (if (null-pointer-p ptr) nil (%codec ptr)))
+
+(defmethod expand-to-foreign (codec (type codec-ptr))
+  `(if ,codec (%codec-ptr ,codec) (null-pointer)))
+
+(defmethod expand-from-foreign (ptr (type codec-ptr))
+  `(if (null-pointer-p ,ptr) nil (%codec ,ptr)))
 
 (defmethod print-object ((profile codec-profile) stream)
   (if *print-pretty*
@@ -286,7 +266,7 @@
                                 (codec-profile-name p))
                         (when next
                           (pprint-newline :linear stream)))))))
-      (format stream "{#x~8,'0X}" (pointer-address (%codec-ptr codec))))
+      (format stream " {#x~8,'0X}" (pointer-address (%codec-ptr codec))))
     (call-next-method)))
 
 ;; vim: ft=lisp et
