@@ -81,6 +81,8 @@
   (unless *ffmpeg-initialized*
     #-sbcl
     (setf *io-contexts-mutex* (bt:make-lock))
+    #-sbcl
+    (setf *fmt-contexts-mutex* (bt:make-lock))
     (av-register-all)
     (avformat-network-init)
     (avcodec-register-all)
