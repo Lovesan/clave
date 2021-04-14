@@ -35,8 +35,11 @@
   :smpte240m
   :film
   :bt2020
-  :smptest428-1
+  :smptest428
+  (:smptest428-1 10)
   :smpte431
-  :smpte432)
+  :smpte432
+  (:ebu3213 22)
+  (:jedec-p22 22))
 
 ;; vim: ft=lisp et

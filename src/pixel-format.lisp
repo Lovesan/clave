@@ -41,9 +41,6 @@
   :YUVJ420P  ;;;< planar YUV 4:2:0, 12bpp, full scale (JPEG), deprecated in favor of :YUV420P and setting color_range
   :YUVJ422P  ;;;< planar YUV 4:2:2, 16bpp, full scale (JPEG), deprecated in favor of :YUV422P and setting color_range
   :YUVJ444P   ;;;< planar YUV 4:4:4, 24bpp, full scale (JPEG), deprecated in favor of :YUV444P and setting color_range
-  :XVMC-MPEG2-MC ;;;< XVideo Motion Acceleration via common packet passing
-  :XVMC-MPEG2-IDCT
-  (:XVMC 16)
   :UYVY422   ;;;< packed YUV 4:2:2, 16bpp, Cb Y0 Cr Y1
   :UYYVYY411 ;;;< packed YUV 4:1:1, 12bpp, Cb Y0 Y1 Cr Y2 Y3
   :BGR8      ;;;< packed RGB 3:3:2,  8bpp, (msb)2B 3G 3R(lsb)
@@ -65,11 +62,6 @@
   :YUV440P   ;;;< planar YUV 4:4:0 (1 Cr & Cb sample per 1x2 Y samples)
   :YUVJ440P  ;;;< planar YUV 4:4:0 full scale (JPEG), deprecated in favor of :YUV440P and setting color_range
   :YUVA420P  ;;;< planar YUV 4:2:0, 20bpp, (1 Cr & Cb sample per 2x2 Y & A samples)
-  :VDPAU-H264 ;;;< H.264 HW decoding with VDPAU, data[0] contains a vdpau_render_state struct which contains the bitstream of the slices as well as various fields extracted from headers
-  :VDPAU-MPEG1 ;;;< MPEG-1 HW decoding with VDPAU, data[0] contains a vdpau_render_state struct which contains the bitstream of the slices as well as various fields extracted from headers
-  :VDPAU-MPEG2 ;;;< MPEG-2 HW decoding with VDPAU, data[0] contains a vdpau_render_state struct which contains the bitstream of the slices as well as various fields extracted from headers
-  :VDPAU-WMV3 ;;;< WMV3 HW decoding with VDPAU, data[0] contains a vdpau_render_state struct which contains the bitstream of the slices as well as various fields extracted from headers
-  :VDPAU-VC1 ;;;< VC-1 HW decoding with VDPAU, data[0] contains a vdpau_render_state struct which contains the bitstream of the slices as well as various fields extracted from headers
   :RGB48BE   ;;;< packed RGB 16:16:16, 48bpp, 16R, 16G, 16B, the 2-byte value for each R/G/B component is stored as big-endian
   :RGB48LE   ;;;< packed RGB 16:16:16, 48bpp, 16R, 16G, 16B, the 2-byte value for each R/G/B component is stored as little-endian
   
@@ -86,7 +78,7 @@
   :VAAPI-MOCO ;;;< HW acceleration through VA API at motion compensation entry-point, Picture.data[3] contains a vaapi_render_state struct which contains macroblocks as well as various fields extracted from headers
   :VAAPI-IDCT ;;;< HW acceleration through VA API at IDCT entry-point, Picture.data[3] contains a vaapi_render_state struct which contains fields extracted from headers
   :VAAPI-VLD  ;;;< HW decoding through VA API, Picture.data[3] contains a VASurfaceID
-  (:VAAPI 53)
+  (:VAAPI 46)
   
   :YUV420P16LE  ;;;< planar YUV 4:2:0, 24bpp, (1 Cr & Cb sample per 2x2 Y samples), little-endian
   :YUV420P16BE  ;;;< planar YUV 4:2:0, 24bpp, (1 Cr & Cb sample per 2x2 Y samples), big-endian
@@ -94,7 +86,6 @@
   :YUV422P16BE  ;;;< planar YUV 4:2:2, 32bpp, (1 Cr & Cb sample per 2x1 Y samples), big-endian
   :YUV444P16LE  ;;;< planar YUV 4:4:4, 48bpp, (1 Cr & Cb sample per 1x1 Y samples), little-endian
   :YUV444P16BE  ;;;< planar YUV 4:4:4, 48bpp, (1 Cr & Cb sample per 1x1 Y samples), big-endian
-  :VDPAU-MPEG4  ;;;< MPEG-4 HW decoding with VDPAU, data[0] contains a vdpau_render_state struct which contains the bitstream of the slices as well as various fields extracted from headers
   :DXVA2-VLD    ;;;< HW decoding through DXVA2, Picture.data[3] contains a LPDIRECT3DSURFACE9 pointer
   
   :RGB444LE  ;;;< packed RGB 4:4:4, 16bpp, (msb)4X 4R 4G 4B(lsb), little-endian, X=unused/undefined
@@ -103,8 +94,8 @@
   :BGR444BE  ;;;< packed BGR 4:4:4, 16bpp, (msb)4X 4B 4G 4R(lsb), big-endian,    X=unused/undefined
   :YA8       ;;;< 8 bits gray, 8 bits alpha
   
-  (:Y400A 66) ;;;< alias for :YA8
-  (:GRAY8A 66) ;;;< alias for :YA8
+  (:Y400A 58) ;;;< alias for :YA8
+  (:GRAY8A 58) ;;;< alias for :YA8
   
   :BGR48BE   ;;;< packed RGB 16:16:16, 48bpp, 16B, 16G, 16R, the 2-byte value for each R/G/B component is stored as big-endian
   :BGR48LE   ;;;< packed RGB 16:16:16, 48bpp, 16B, 16G, 16R, the 2-byte value for each R/G/B component is stored as little-endian
@@ -126,9 +117,8 @@
   :YUV444P10LE ;;;< planar YUV 4:4:4, 30bpp, (1 Cr & Cb sample per 1x1 Y samples), little-endian
   :YUV422P9BE  ;;;< planar YUV 4:2:2, 18bpp, (1 Cr & Cb sample per 2x1 Y samples), big-endian
   :YUV422P9LE  ;;;< planar YUV 4:2:2, 18bpp, (1 Cr & Cb sample per 2x1 Y samples), little-endian
-  :VDA-VLD    ;;;< hardware decoding through VDA
   :GBRP      ;;;< planar GBR 4:4:4 24bpp
-  (:GBR24P 82) ;;; alias for #:GBRP
+  (:GBR24P 73) ;;; alias for #:GBRP
   :GBRP9BE   ;;;< planar GBR 4:4:4 27bpp, big-endian
   :GBRP9LE   ;;;< planar GBR 4:4:4 27bpp, little-endian
   :GBRP10BE  ;;;< planar GBR 4:4:4 30bpp, big-endian
@@ -171,8 +161,6 @@
   
   :YVYU422   ;;;< packed YUV 4:2:2, 16bpp, Y0 Cr Y1 Cb
   
-  :VDA          ;;;< HW acceleration through VDA, data[3] contains a CVPixelBufferRef
-  
   :YA16BE       ;;;< 16 bits gray, 16 bits alpha (big-endian)
   :YA16LE       ;;;< 16 bits gray, 16 bits alpha (little-endian)
   
@@ -191,7 +179,7 @@
   ;;
   :MMAL
   
-  :D3D11VA-VLD  ;;;< HW decoding through Direct3D11, Picture.data[3] contains a ID3D11VideoDecoderOutputView pointer
+  :D3D11VA-VLD  ;;;< HW decoding through Direct3D11 via old API, Picture.data[3] contains a ID3D11VideoDecoderOutputView pointer
   
   ;;
   ;; HW acceleration through CUDA. data[i] contain CUdeviceptr pointers
@@ -199,7 +187,7 @@
   ;;
   :CUDA
   
-  (:0RGB 295)    ;;;< packed RGB 8:8:8, 32bpp, XRGBXRGB...   X=unused/undefined
+  :0RGB        ;;;< packed RGB 8:8:8, 32bpp, XRGBXRGB...   X=unused/undefined
   :RGB0        ;;;< packed RGB 8:8:8, 32bpp, RGBXRGBX...   X=unused/undefined
   :0BGR        ;;;< packed BGR 8:8:8, 32bpp, XBGRXBGR...   X=unused/undefined
   :BGR0        ;;;< packed BGR 8:8:8, 32bpp, BGRXBGRX...   X=unused/undefined
@@ -234,6 +222,9 @@
   :BAYER-GBRG16BE ;;;< bayer, GBGB..(odd line), RGRG..(even line), 16-bit samples, big-endian */
   :BAYER-GRBG16LE ;;;< bayer, GRGR..(odd line), BGBG..(even line), 16-bit samples, little-endian */
   :BAYER-GRBG16BE ;;;< bayer, GRGR..(odd line), BGBG..(even line), 16-bit samples, big-endian */
+
+  :XVMC  ;;;< XVideo Motion Acceleration via common packet passing
+
   :YUV440P10LE ;;;< planar YUV 4:4:0,20bpp, (1 Cr & Cb sample per 1x2 Y samples), little-endian
   :YUV440P10BE ;;;< planar YUV 4:4:0,20bpp, (1 Cr & Cb sample per 1x2 Y samples), big-endian
   :YUV440P12LE ;;;< planar YUV 4:4:0,24bpp, (1 Cr & Cb sample per 1x2 Y samples), little-endian
@@ -253,6 +244,63 @@
   :GBRAP10LE  ;;;< planar GBR 4:4:4:4 40bpp, little-endian
   
   :MEDIACODEC ;;;< hardware decoding through MediaCodec
+
+  :GRAY12BE   ;;;<        Y        , 12bpp, big-endian
+  :GRAY12LE   ;;;<        Y        , 12bpp, little-endian
+  :GRAY10BE   ;;;<        Y        , 10bpp, big-endian
+  :GRAY10LE   ;;;<        Y        , 10bpp, little-endian
+
+  :P016LE  ;;;< like NV12, with 16bpp per component, little-endian
+  :P016BE  ;;;< like NV12, with 16bpp per component, big-endian
+
+  ;; Hardware surfaces for Direct3D11.
+  ;; This is preferred over the legacy AV_PIX_FMT_D3D11VA_VLD. The new D3D11
+  ;; hwaccel API and filtering support AV_PIX_FMT_D3D11 only.
+  ;; data[0] contains a ID3D11Texture2D pointer, and data[1] contains the
+  ;; texture array index of the frame as intptr_t if the ID3D11Texture2D is
+  ;; an array texture (or always 0 if it's a normal texture).
+  :D3D11
+
+  :GRAY9BE    ;;;<        Y        , 9bpp, big-endian
+  :GRAY9LE    ;;;<        Y        , 9bpp, little-endian
+
+  :GBRPF32BE  ;;;< IEEE-754 single precision planar GBR 4:4:4,     96bpp, big-endian
+  :GBRPF32LE  ;;;< IEEE-754 single precision planar GBR 4:4:4,     96bpp, little-endian
+  :GBRAPF32BE ;;;< IEEE-754 single precision planar GBRA 4:4:4:4, 128bpp, big-endian
+  :GBRAPF32LE ;;;< IEEE-754 single precision planar GBRA 4:4:4:4, 128bpp, little-endian
+
+  ;; DRM-managed buffers exposed through PRIME buffer sharing.
+  ;; data[0] points to an AVDRMFrameDescriptor.
+  :DRM_PRIME
+
+  ;; Hardware surfaces for OpenCL.
+  ;; data[i] contain 2D image objects (typed in C as cl_mem, used
+  ;; in OpenCL as image2d_t) for each plane of the surface.
+  :OPENCL
+
+  :GRAY14BE    ;;;<        Y        , 14bpp, big-endian
+  :GRAY14LE    ;;;<        Y        , 14bpp, little-endian
+
+  :GRAYF32BE   ;;;< IEEE-754 single precision Y, 32bpp, big-endian
+  :GRAYF32LE   ;;;< IEEE-754 single precision Y, 32bpp, little-endian
+
+  :YUVA422P12BE  ;;;< planar YUV 4:2:2,24bpp, (1 Cr & Cb sample per 2x1 Y samples), 12b alpha, big-endian
+  :YUVA422P12LE  ;;;< planar YUV 4:2:2,24bpp, (1 Cr & Cb sample per 2x1 Y samples), 12b alpha, little-endian
+  :YUVA444P12BE  ;;;< planar YUV 4:4:4,36bpp, (1 Cr & Cb sample per 1x1 Y samples), 12b alpha, big-endian
+  :YUVA444P12LE  ;;;< planar YUV 4:4:4,36bpp, (1 Cr & Cb sample per 1x1 Y samples), 12b alpha, little-endian
+
+  :NV24       ;;;< planar YUV 4:4:4, 24bpp, 1 plane for Y and 1 plane for the UV components, which are interleaved (first byte U and the following byte V)
+  :NV42       ;;;< as above, but U and V bytes are swapped
+
+  ;; Vulkan hardware images.
+  ;; data[0] points to an AVVkFrame
+  :VULKAN
+
+  :Y210BE     ;;;< packed YUV 4:2:2 like YUYV422, 20bpp, data in the high bits, big-endian
+  :Y210LE     ;;;< packed YUV 4:2:2 like YUYV422, 20bpp, data in the high bits, little-endian
+
+  :X2RGB10LE  ;;;< packed RGB 10:10:10, 30bpp, (msb)2X 10R 10G 10B(lsb), little-endian, X=unused/undefined
+  :X2RGB10BE  ;;;< packed RGB 10:10:10, 30bpp, (msb)2X 10R 10G 10B(lsb), big-endian, X=unused/undefined
   )
 
 (define-foreign-type pixel-format-list ()

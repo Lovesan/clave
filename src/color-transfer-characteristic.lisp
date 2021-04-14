@@ -41,8 +41,10 @@
   :iec61966-2-1
   :bt2020-10
   :bt2020-12
-  :smptest2048
-  :smptest428-1
+  :smpte2084
+  (:smptest2084 16)
+  :smptest428
+  (:smptest428-1 17)
   :arib-std-b67)
 
 ;; vim: ft=lisp et

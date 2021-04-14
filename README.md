@@ -2,7 +2,7 @@
 
 ### Work in progress
 
-### Current FFmpeg version - 3.2.4
+### Current FFmpeg version - 4.3.2
 
 ## Simple example - convert media file to .mp3
 

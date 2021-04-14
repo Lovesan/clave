@@ -33,9 +33,13 @@
   :bt470bg
   :smpte170m
   :smpte240m
-  :ycocg
+  :ycgco
+  (:ycocg 8)
   :bt2020-ncl
   :bt2020-cl
-  :smpte2085)
+  :smpte2085
+  :chroma-derived-ncl
+  :chroma-derived-cl
+  :ictcp)
 
 ;; vim: ft=lisp et

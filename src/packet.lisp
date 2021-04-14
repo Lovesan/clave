@@ -33,10 +33,11 @@
   (stream-index :int)
   (flags packet-flags)
   (side-data :pointer)
-  (side-data-elems :pointer)
+  (side-data-elems :int)
   (duration :int64)
   (pos :int64)
-  (convergence-duration :int64))
+  (convergence-duration :int64) ;; deprecated
+  )
 
 (declaim (inline av-packet-alloc))
 (defcfun (av-packet-alloc "av_packet_alloc" :library libavcodec)
