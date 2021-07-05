@@ -42,7 +42,8 @@
   (video-codec codec-id)
   (subtitle-codec codec-id)
   (flags format-flags)
-  (codec-tag :pointer))
+  (codec-tag :pointer)
+  (priv-class :pointer))
 
 (defcfun (av-find-input-format "av_find_input_format" :library libavformat)
     :pointer

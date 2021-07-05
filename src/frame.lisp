@@ -27,8 +27,8 @@
 (defconstant +frame-data-pointers+ 8)
 
 (defcstruct (av-frame :class av-frame)
-  (data :pointer :count 8)
-  (linesize :int :count 8)
+  (data :pointer :count #.+frame-data-pointers+)
+  (linesize :int :count #.+frame-data-pointers+)
   (extended-data :pointer)
   (width :int)
   (height :int)
@@ -38,13 +38,13 @@
   (pict-type picture-type)
   (sample-aspect-ratio (:struct av-rational))
   (pts :int64)
-  (pkt-pts :int64)
+  (pkt-pts :int64) ;; deprecated
   (pkt-dts :int64)
   (coded-picture-number :int)
   (display-picture-number :int)
   (quality :int)
   (opaque :pointer)
-  (errors :uint64 :count 8)
+  (errors :uint64 :count #.+frame-data-pointers+) ;; deprecated
   (repeat-pict :int)
   (interlaced-frame :boolean)
   (top-field-first :boolean)
@@ -52,9 +52,9 @@
   (reordered-opaque :int64)
   (sample-rate :int)
   (channel-layout channels-or-layout)
-  (buf :pointer :count 8)
+  (buf :pointer :count #.+frame-data-pointers+)
   (extended-buf :pointer)
-  (nb-extended-bug :int)
+  (nb-extended-buf :int)
   (side-data :pointer)
   (nb-side-data :int)
   (flags frame-flags)
@@ -70,11 +70,18 @@
   (decode-error-flags decode-error-flags)
   (channels :int)
   (pkt-size :int)
-  (qscale-table :pointer)
-  (qstride :int)
-  (qscale-type :int)
-  (qp-table-buf :pointer)
-  (hw-frames-ctx :pointer))
+  (qscale-table :pointer) ;; deprecated
+  (qstride :int) ;; deprecated
+  (qscale-type :int) ;; deprecated
+  (qp-table-buf :pointer) ;; newly deprecated
+  (hw-frames-ctx :pointer)
+  (opaque-ref :pointer)
+  (crop-top size-t)
+  (crop-bottom size-t)
+  (crop-left size-t)
+  (crop-right size-t)
+  (private-ref :pointer)
+  )
 
 (defcfun (av-frame-alloc "av_frame_alloc" :library libavcodec)
     :pointer)

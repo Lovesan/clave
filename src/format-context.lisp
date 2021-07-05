@@ -24,6 +24,8 @@
 
 (in-package #:clave)
 
+(defconstant +max-url-length+ 2000)
+
 (defcenum avoid-negative-ts
   (:auto -1)
   (:make-non-negative 1)
@@ -43,7 +45,8 @@
   (no-header :boolean) ;; ctx-flags, 1 == no-header
   (nb-streams :uint)
   (streams :pointer)
-  (filename :char :count 1024)
+  #-FF-API-FORMAT-FILENAME (filename :char :count 1024) ;; deprecated
+  (url (:pointer (:string :encoding :utf-8)))
   (start-time :int64)
   (duration :int64)
   (bit-rate :int64)
@@ -68,11 +71,10 @@
   (fps-probe-size :int)
   (error-recognition :int)
   (icb-callback :pointer)
-  (icb-opaque :pointer)
   (debug :boolean)
   (max-interleave-delta :int64)
   (strict-std-compliance :int)
-  (metadata-updated :boolean)
+  (metadata-updated :boolean) ;; event-flags
   (max-ts-probe :int)
   (avoid-negative-ts avoid-negative-ts)
   (ts-id :int)
@@ -102,12 +104,14 @@
   (output-ts-offset :int64)
   (dump-separator :pointer)
   (data-codec-id codec-id)
-  (open-cb :pointer)
+  (open-cb :pointer) ;; deprecated
   (protocol-whitelist :pointer)
   (io-open :pointer)
   (io-close :pointer)
   (protocol-blacklist :pointer)
-  (max-streams :int))
+  (max-streams :int)
+  (skip-estimate-duration-from-pts :int)
+  (max-probe-packets :int))
 
 (defcfun (avformat-alloc-context "avformat_alloc_context" :library libavformat)
     :pointer)
@@ -258,12 +262,10 @@
               (foreign-slot-value p '(:struct av-format-context) 'flags) flags
               (foreign-slot-value p '(:struct av-format-context) 'opaque) p)
         (when interrupt-callback
-          (setf (foreign-slot-value p '(:struct av-format-context) 'icb-opaque)
-                p
-                (foreign-slot-value p '(:struct av-format-context) 'icb-callback)
+          (setf (foreign-slot-value p '(:struct av-format-context) 'icb-callback)
                 (callback format-interrupt-callback)))
-        (with-foreign-pointer (purl 1024)
-          (lisp-string-to-foreign url purl 1024 :encoding :utf-8)
+        (with-foreign-pointer (purl +max-url-length+)
+          (lisp-string-to-foreign url purl +max-url-length+ :encoding :utf-8)
           (check-rv (avformat-open-input pp purl iformat dict)))
         (let ((ctx (%format-context p t io-context interrupt-callback))
               (custom-io (and io-context t)))
@@ -351,12 +353,12 @@
            (ptr (if input iformat oformat)))
       (if (null-pointer-p ptr) nil (%io-format ptr input)))))
 
-(defun format-context-filename (ctx)
+(defun format-context-url (ctx)
   (declare (type format-context ctx))
-  (with-foreign-slots ((filename)
+  (with-foreign-slots ((url)
                        (%format-context-ptr ctx)
                        (:struct av-format-context))
-    (foreign-string-to-lisp filename :encoding :utf-8)))
+    (foreign-string-to-lisp url :encoding :utf-8)))
 
 (defun add-media-stream (ctx codec)
   (declare (type format-context ctx)
@@ -446,9 +448,9 @@
   (print-unreadable-object (ctx stream :identity t :type t)
     (if (format-context-alive-p ctx)
       (pprint-logical-block (stream nil)
-        (let-when (filename (format-context-filename ctx)
-                            (string/= filename ""))
-          (format stream "Filename: ~a~:@_" filename))
+        (let-when (url (format-context-url ctx)
+                   (string/= url ""))
+          (format stream "URL: ~s ~:@_" url))
         (let-when (flags (format-context-flags ctx))
           (format stream "Flags: ~{~a~^, ~:_~}~:@_" flags))
         (let-when (format (format-context-format ctx))

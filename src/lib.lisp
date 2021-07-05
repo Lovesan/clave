@@ -25,44 +25,51 @@
 (in-package #:clave)
 
 (define-foreign-library libavcodec
-  (:win32 "avcodec-57.dll")
-  (t "libavcodec.so.57"))
+  (:win32 "avcodec-58.dll")
+  (:darwin (:default "libavcodec.58"))
+  (t "libavcodec.so.58"))
 
 (use-foreign-library libavcodec)
 
 (define-foreign-library libavformat
-  (:win32 "avformat-57.dll")
-  (t "libavformat.so.57"))
+  (:win32 "avformat-58.dll")
+  (:darwin (:default "libavformat.58"))
+  (t "libavformat.so.58"))
 
 (use-foreign-library libavformat)
 
 (define-foreign-library libavfilter
-  (:win32 "avfilter-6.dll")
-  (t "libavfilter.so.6"))
+  (:win32 "avfilter-7.dll")
+  (:darwin (:default "libavfilter.7"))
+  (t "libavfilter.so.7"))
 
 (use-foreign-library libavfilter)
 
 (define-foreign-library libavdevice
-  (:win32 "avdevice-57.dll")
-  (t "libavdevice.so.57"))
+  (:win32 "avdevice-58.dll")
+  (:darwin (:default "libavdevice.58"))
+  (t "libavdevice.so.58"))
 
 (use-foreign-library libavdevice)
 
 (define-foreign-library libavutil
-  (:win32 "avutil-55.dll")
-  (t "libavutil.so.55"))
+  (:win32 "avutil-56.dll")
+  (:darwin (:default "libavutil.56"))
+  (t "libavutil.so.56"))
 
 (use-foreign-library libavutil)
 
 (define-foreign-library libswresample
-  (:win32 "swresample-2.dll")
-  (t "libswresample.so.2"))
+  (:win32 "swresample-3.dll")
+  (:darwin (:default "libswresample.3"))
+  (t "libswresample.so.3"))
 
 (use-foreign-library libswresample)
 
 (define-foreign-library libswscale
-  (:win32 "swscale-4.dll")
-  (t "libswscale.so.4"))
+  (:win32 "swscale-5.dll")
+  (:darwin (:default "libswscale.5"))
+  (t "libswscale.so.5"))
 
 (use-foreign-library libswscale)
 

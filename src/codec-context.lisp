@@ -25,6 +25,7 @@
 (in-package #:clave)
 
 (defconstant +ff-lambda-max+ (1- (* 256 128)))
+(defconstant +num-data-pointers+ 8)
 
 (defcenum ff-cmp
   :sad
@@ -74,33 +75,34 @@
   :simple
   :simplemmx
   (:arm 7)
-  :altivec
-  :sh4
-  :simplearm
-  (:ipp 13)
+  (:altivec 8)
+  (:simplearm 10)
   (:xvid 14)
-  (:xvidmmx 14)
   (:simplearmv5te 16)
   :simplearmv6
-  :simplevis
   (:faan 20)
   (:simpleneon 22)
-  (:simplealpha 23)
+  (:none 24)
   (:simpleauto 128))
 
 (defcenum thread-type
   (:frame 1)
   (:slice 2))
 
+(defcenum debug
+  (:pict-info 1)
+  (:rc 2)
+  (:bitstream 4)
+  (:mb-type 8)
+  (:qp 16))
+
 (defcstruct (av-codec-context :class av-codec-context)
   (av-class :pointer)
   (log-level-offset :int)
   (codec-type media-type)
   (codec codec-ptr)
-  (codec-name :char :count 32) ;; deprecated
   (codec-id codec-id)
   (codec-tag :uint)
-  (stream-codec-tag :uint)
   (priv-data :pointer)
   (internal :pointer)
   (opaque :pointer)
@@ -121,16 +123,14 @@
   (coded-height :int)
   (gop-size :int)
   (pixel-format pixel-format)
-  (me-method :int) ;; deprecated
   (draw-horiz-band :pointer)
   (get-format :pointer)
   (max-b-frames :int)
   (b-quant-factor :float)
-  (rc-strategy :int) ;; deprecated
-  (b-frame-strategy :int) ;; deprecated
+  #-FF-API-PRIVATE-OPT (b-frame-strategy :int) ;; deprecated
   (b-quant-offset :float)
   (has-b-frames :boolean)
-  (mpeg-quant :int) ;; deprecated
+  #-FF-API-PRIVATE-OPT (mpeg-quant :int) ;; deprecated
   (i-quant-factor :float)
   (i-quant-offset :float)
   (lumi-masking :float)
@@ -139,7 +139,7 @@
   (p-masking :float)
   (dark-masking :float)
   (slice-count :int)
-  (prediction-method :int) ;; deprecated
+  #-FF-API-PRIVATE-OPT (prediction-method :int) ;; deprecated
   (slice-offset :pointer)
   (sample-aspect-ratio (:struct av-rational))
   (me-cmp ff-cmp)
@@ -148,43 +148,35 @@
   (ildct-cmp ff-cmp)
   (dia-size :int)
   (last-predictor-count :int)
-  (pre-me :int) ;; deprecated
+  #-FF-API-PRIVATE-OPT (pre-me :int) ;; deprecated
   (me-pre-cmp ff-cmp)
   (pre-dia-size :int)
   (me-subpel-quality :int)
-  (dtg-active-format :int) ;; deprecated
   (me-range :int)
-  (intra-quant-bias :int) ;; deprecated
-  (inter-quant-bias :int) ;; deprecated
   (slice-flags slice-flags)
-  (xvmc-acceleration :int) ;; deprecated
   (mb-decision mb-decision)
   (intra-matrix :pointer)
   (inter-matrix :pointer)
-  (scenechange-threshold :int) ;; deprecated
-  (noise-reduction :int) ;; deprecated
-  (me-threshold :int) ;; deprecated
-  (mb-threshold :int) ;; deprecated
+  #-FF-API-PRIVATE-OPT (scenechange-threshold :int) ;; deprecated
+  #-FF-API-PRIVATE-OPT (noise-reduction :int) ;; deprecated
   (intra-dc-precision :int)
   (skip-top :int)
   (skip-bottom :int)
-  (border-masking :float) ;; deprecated
   (mb-lmin :int)
   (mb-lmax :int)
-  (mb-penalty-compensation :int) ;; deprecated
+  #-FF-API-PRIVATE-OPT (mb-penalty-compensation :int) ;; deprecated
   (bidir-refine :int)
-  (brd-scale :int) ;; deprecated
+  #-FF-API-PRIVATE-OPT (brd-scale :int) ;; deprecated
   (keyint-min :int)
   (refs :int)
-  (chromaoffset :int) ;; deprecated
-  (scenechange-factor :int) ;; deprecated
+  #-FF-API-PRIVATE-OPT (chromaoffset :int) ;; deprecated
   (mv0-threshold :int)
-  (b-sensitivity :int) ;; deprecated
+  #-FF-API-PRIVATE-OPT (b-sensitivity :int) ;; deprecated
   (color-primaries color-primaries)
   (color-trc color-transfer-characteristic)
   (color-space color-space)
   (color-range color-range)
-  (chroma-location chroma-location)
+  (chroma-sample-location chroma-location)
   (slices :int)
   (field-order field-order)
   (sample-rate :int)
@@ -199,67 +191,59 @@
   (audio-service-type :int)
   (request-sample-format sample-format)
   (get-buffer2 :pointer)
-  (refcounted-frames :boolean)
+  (refcounted-frames :boolean) ;; newly deprecated
   (qcompress :float)
   (qblur :float)
   (qmin :int)
   (qmax :int)
   (max-qdiff :int)
-  (rc-qsquish :float) ;; deprecated
-  (rc-qmod-amp :float) ;; deprecated
-  (rc-qmod-freq :float) ;; deprecated
   (rc-buffer-size :int)
   (rc-override-count :int)
   (rc-override :pointer)
-  (rc-eq :pointer) ;; deprecated
   (rc-max-rate :int64)
   (rc-min-rate :int64)
-  (rc-buffer-aggressivity :float) ;; deprecated
-  (rc-initial-cplx :float) ;; deprecated
   (rc-max-available-vbv-use :float)
   (rc-min-vbv-overflow-use :float)
   (rc-initial-buffer-occupancy :int)
-  (coder-type :int) ;; deprecated
-  (context-model :int) ;; deprecated
-  (lmin :int) ;; deprecated
-  (lmax :int) ;; deprecated
-  (frame-skip-threshold :int) ;; deprecated
-  (frame-skip-factor :int) ;; deprecated
-  (frame-skip-exp :int) ;; deprecated
-  (frame-skip-cmp :int) ;; deprecated
+  #-FF-API-CODER-TYPE (coder-type :int) ;; deprecated
+  #-FF-API-PRIVATE-OPT (context-model :int) ;; deprecated
+  #-FF-API-PRIVATE-OPT (frame-skip-threshold :int) ;; deprecated
+  #-FF-API-PRIVATE-OPT (frame-skip-factor :int) ;; deprecated
+  #-FF-API-PRIVATE-OPT (frame-skip-exp :int) ;; deprecated
+  #-FF-API-PRIVATE-OPT (frame-skip-cmp :int) ;; deprecated
   (trellis :int)
-  (min-prediction-order :int) ;; deprecated
-  (max-prediction-order :int) ;; deprecated
-  (timecode-frame-start :int64) ;; deprecated
-  (rtp-callback :pointer) ;; deprecated
-  (rtp-payload-size :int) ;; deprecated
-  (mv-bits :int) ;; deprecated
-  (header-bits :int) ;; deprecated
-  (i-tex-bits :int) ;; deprecated
-  (p-tex-bits :int) ;; deprecated
-  (i-count :int) ;; deprecated
-  (p-count :int) ;; deprecated
-  (skip-count :int) ;; deprecated
-  (misc-bits :int) ;; deprecated
-  (frame-bits :int) ;; deprecated
+  #-FF-API-PRIVATE-OPT (min-prediction-order :int) ;; deprecated
+  #-FF-API-PRIVATE-OPT (max-prediction-order :int) ;; deprecated
+  #-FF-API-PRIVATE-OPT (timecode-frame-start :int64) ;; deprecated
+  #-FF-API-RTP-CALLBACK (rtp-callback :pointer) ;; deprecated
+  #-FF-API-PRIVATE-OPT (rtp-payload-size :int) ;; deprecated
+  #-FF-API-STAT-BITS (mv-bits :int) ;; deprecated
+  #-FF-API-STAT-BITS (header-bits :int) ;; deprecated
+  #-FF-API-STAT-BITS (i-tex-bits :int) ;; deprecated
+  #-FF-API-STAT-BITS (p-tex-bits :int) ;; deprecated
+  #-FF-API-STAT-BITS (i-count :int) ;; deprecated
+  #-FF-API-STAT-BITS (p-count :int) ;; deprecated
+  #-FF-API-STAT-BITS (skip-count :int) ;; deprecated
+  #-FF-API-STAT-BITS (misc-bits :int) ;; deprecated
+  #-FF-API-STAT-BITS (frame-bits :int) ;; deprecated
   (stats-out :pointer)
   (stats-in :pointer)
   (workaround-bugs :int)
   (strict-std-compliance compliance)
   (error-concealment error-concealment)
-  (debug :int) ;; TODO: enum
-  (debug-mv :int) ;; TODO: enum
+  (debug debug) ;; TODO: enum
+  #+FF-API-DEBUG-MV (debug-mv :int) ;; TODO: enum
   (err-recognition :int)
   (reordered-opaque :int64)
   (hwaccel :pointer)
   (hwaccel-context :pointer)
-  (errors :uint64 :count 8)
+  (errors :uint64 :count #.+num-data-pointers+)
   (dct-algo dct-algo)
   (idct-algo idct-algo)
   (bits-per-coded-sample :int)
   (bits-per-raw-sample :int)
-  (lowres :int)
-  (coded-frame :pointer) ;; deprecated
+  #+FF-API-LOWRES (lowres :int)
+  #-FF-API-CODED-FRAME (coded-frame :pointer) ;; deprecated
   (thread-count :int)
   (thread-type thread-type)
   (active-thread-type thread-type)
@@ -274,15 +258,14 @@
   (skip-frame discard)
   (subtitle-header :pointer)
   (subtitle-header-size :int)
-  (error-rate :int) ;; deprecated
-  (vbv-delay :uint64) ;; deprecated
-  (side-data-only-packets :int) ;; deprecated
+  #-FF-API-VBV-DELAY (vbv-delay :uint64) ;; deprecated
+  #-FF-API-SIDE-DATA-ONLY-PKT (side-data-only-packets :int) ;; deprecated
   (initial-padding :int)
   (frame-rate (:struct av-rational))
   (sw-pix-fmt pixel-format)
-  (pkt-timebase-num :int)
-  (pkt-timebase-denom :int)
+  (pkt-timebase (:struct av-rational))
   (codec-descriptor :pointer)
+  #-FF-API-LOWRES (lowres :int)
   (pts-correction-num-faulty-pts :int64)
   (pts-correction-num-faulty-dts :int64)
   (pts-correction-last-pts :int64)
@@ -291,6 +274,7 @@
   (sub-charenc-mode :int)
   (skip-alpha :boolean)
   (seek-preroll :int)
+  #-FF-API-DEBUG-MV (debug-mv :int) ;; TODO: enum
   (chroma-intra-matrix :pointer)
   (dump-separator :pointer)
   (codec-whitelist :pointer)
@@ -299,7 +283,15 @@
   (nb-coded-side-data :int)
   (hw-frames-ctx :pointer)
   (sub-text-format :int)
-  (trailing-padding :int))
+  (trailing-padding :int)
+  (max-pixels :int64)
+  (hw-device-ctx :pointer)
+  (hw-accel-flags :int)
+  (apply-cropping :int)
+  (extra-hw-frames :int)
+  (discard-damaged-percentage :int)
+  (max-samples :int64)
+  (export-side-date :int))
 
 (defcfun (avcodec-alloc-context3 "avcodec_alloc_context3" :library libavcodec)
     :pointer
@@ -365,7 +357,6 @@
   (color-trc keyword "Color transfer characteristics" t)
   (color-space keyword "Color space" t)
   (color-range keyword "Color range" t)
-  (chroma-location keyword "Chroma location" t)
   (slices int "Slices" t)
   (field-order keyword "Field order" t)
   (sample-rate int "Sample rate" t)
